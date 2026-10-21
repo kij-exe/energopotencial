@@ -50,6 +50,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -168,6 +169,61 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
 .legend li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: center; padding: 4px 0; }
 .legend .chip { width: 36px; }
 
+/* point details: centered card on desktop, bottom sheet on phones */
+body:has(dialog[open]) { overflow: hidden; }
+dialog.sheet {
+  border: 0; padding: 0; margin: auto;
+  width: min(520px, calc(100% - 32px)); max-width: none; max-height: min(86vh, 760px);
+  border-radius: 14px; background: var(--surface); color: var(--ink);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .3); overflow: hidden;
+}
+dialog.sheet[open] { display: flex; flex-direction: column; }
+dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
+.grip { display: none; }
+.sheet-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+.sheet-head h3 { font: 500 18px/1.25 var(--f-mono); font-variant-numeric: tabular-nums; margin-top: 4px; }
+.sheet-body { padding: 16px 20px; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 14px; align-content: start; }
+.sheet-foot { display: flex; gap: 8px; padding: 12px 20px max(12px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+.sheet-foot .grow { flex: 1; }
+.iconbtn { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; font-size: 22px; line-height: 1; }
+.sv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+.sv .big { width: 64px; height: 72px; display: grid; place-items: center; border-radius: 10px; font: 700 40px/1 var(--f-display); }
+.sv .big.z { box-shadow: inset 0 0 0 2px var(--zero); }
+.sv .mean { font-weight: 500; line-height: 1.35; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.badge { padding: 2px 8px; border-radius: 999px; font: 600 11px/1.5 var(--f-body); text-transform: uppercase; letter-spacing: .06em; background: var(--accent); color: var(--accent-ink); }
+.badge.z { background: var(--zero); color: var(--surface); }
+.sub { display: grid; gap: 8px; }
+.sub .formula-s { font: 400 13px/1.3 var(--f-mono); color: var(--muted); }
+.lifelvl { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--bg); }
+.lifelvl .chip { grid-row: span 2; width: 36px; }
+.lifelvl .when, .mlist .when { font: 400 13px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
+.lifelvl .m, .mlist .m { font-size: 12px; line-height: 1.3; color: var(--muted); }
+.mlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.mlist li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 2px 12px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--bg); }
+.mlist li .chip { grid-row: span 2; width: 36px; height: 34px; font-size: 18px; }
+.mlist li.zz { background: var(--zero-soft); }
+.mlist li.cur { box-shadow: inset 0 0 0 2px var(--accent); }
+.mlist .top-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mlist .badge { font-size: 10px; padding: 0 6px; }
+@media (max-width: 600px) {
+  dialog.sheet { margin: auto 0 0; width: 100%; max-height: 88vh; border-radius: 16px 16px 0 0; }
+  .grip { display: block; flex: none; width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 8px auto 0; }
+  .sheet-head { padding-top: 10px; }
+  .sheet-head, .sheet-body, .sheet-foot {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  dialog.sheet[open] { animation: pop .18s ease-out; }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 600px) {
+  dialog.sheet[open] { animation: rise .22s ease-out; }
+}
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes rise { from { transform: translateY(100%); } }
+
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .foot { font-size: 12px; color: var(--muted); max-width: 80ch; }
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
@@ -181,6 +237,11 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
   .fields { grid-template-columns: 60px minmax(0, 1fr) 84px; }
   table.pts th, table.pts td { padding: 6px 5px; font-size: 12px; }
   table.pts th { font-size: 16px; }
+  /* 16px keeps iOS from zooming in on focus */
+  .ctl input, .ctl select { font-size: 16px; height: 38px; }
+  .seg button { height: 36px; }
+  .btn.small { height: 38px; }
+  .panel-head .ctls { width: 100%; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .chart path.ln { transition: d .3s ease; }
@@ -290,6 +351,24 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
   <p class="foot" data-i="disclaimer"></p>
 </div>
 
+<dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
+  <div class="grip" aria-hidden="true"></div>
+  <div class="sheet-head">
+    <div>
+      <div class="eyebrow" id="sheetKind"></div>
+      <h3 id="sheetTitle"></h3>
+    </div>
+    <button class="iconbtn" type="button" id="sheetClose">×</button>
+  </div>
+  <div class="sheet-body" id="sheetBody"></div>
+  <div class="sheet-foot">
+    <button class="btn ghost" type="button" id="sheetPrev">←</button>
+    <button class="btn grow" type="button" id="sheetOpen"></button>
+    <span class="grow" id="sheetSpacer"></span>
+    <button class="btn ghost" type="button" id="sheetNext">→</button>
+  </div>
+</dialog>
+
 <script>
 (() => {
   "use strict";
@@ -313,11 +392,15 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
       lifeEyebrow: "График «Жизнь»", lifeTitle: "Энергопотенциал по годам",
       pNear: "Вокруг сегодня", pBirth: "С рождения", pLife: "90 лет",
       from: "с", to: "по",
-      lifeHint: "Цикл повторяется каждые {n}. Каждая цифра действует год — от дня рождения до следующего. Нажмите на точку или год в таблице, чтобы открыть график этого года.",
+      lifeHint: "Цикл повторяется каждые {n}. Каждая цифра действует год — от дня рождения до следующего. Нажмите на точку графика, чтобы увидеть даты и разбивку года по месяцам.",
+      sheetLife: "График «Жизнь» · год", sheetYear: "График «Год» · месяц",
+      byMonth: "По месяцам", openYear: "Открыть график года", close: "Закрыть",
+      prev: "Предыдущая точка", next: "Следующая точка",
+      lifeLevel: "Уровень «Жизнь» в этом году", zzBadge: "ноль в нуле", nowBadge: "сейчас",
       yearEyebrow: "График «Год»",
       yearTitle: "Год с {date}",
       periodLbl: "Год", current: "Текущий",
-      yearHint: "Каждая цифра действует месяц, начиная с дня рождения. Пунктир — уровень графика «Жизнь» в этом году.",
+      yearHint: "Каждая цифра действует месяц, начиная с дня рождения. Пунктир — уровень графика «Жизнь» в этом году. Нажмите на точку, чтобы увидеть даты.",
       colValue: "Энергопотенциал", colYear: "Календарный год", colStart: "Начало действия",
       zzEyebrow: "Ноль в нуле", zzTitle: "Ближайшие периоды «ноль в нуле»",
       zzExplain: "«Ноль в нуле» — это когда в один и тот же период энергопотенциал равен нулю и на графике «Жизнь», и на графике «Год».",
@@ -360,11 +443,15 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
       lifeEyebrow: "Графік «Життя»", lifeTitle: "Енергопотенціал за роками",
       pNear: "Навколо сьогодні", pBirth: "Від народження", pLife: "90 років",
       from: "з", to: "по",
-      lifeHint: "Цикл повторюється кожні {n}. Кожна цифра діє рік — від дня народження до наступного. Натисніть на точку або рік у таблиці, щоб відкрити графік цього року.",
+      lifeHint: "Цикл повторюється кожні {n}. Кожна цифра діє рік — від дня народження до наступного. Натисніть на точку графіка, щоб побачити дати й розбивку року за місяцями.",
+      sheetLife: "Графік «Життя» · рік", sheetYear: "Графік «Рік» · місяць",
+      byMonth: "За місяцями", openYear: "Відкрити графік року", close: "Закрити",
+      prev: "Попередня точка", next: "Наступна точка",
+      lifeLevel: "Рівень «Життя» цього року", zzBadge: "нуль у нулі", nowBadge: "зараз",
       yearEyebrow: "Графік «Рік»",
       yearTitle: "Рік з {date}",
       periodLbl: "Рік", current: "Поточний",
-      yearHint: "Кожна цифра діє місяць, починаючи з дня народження. Пунктир — рівень графіка «Життя» цього року.",
+      yearHint: "Кожна цифра діє місяць, починаючи з дня народження. Пунктир — рівень графіка «Життя» цього року. Натисніть на точку, щоб побачити дати.",
       colValue: "Енергопотенціал", colYear: "Календарний рік", colStart: "Початок дії",
       zzEyebrow: "Нуль у нулі", zzTitle: "Найближчі періоди «нуль у нулі»",
       zzExplain: "«Нуль у нулі» — це коли в один і той самий період енергопотенціал дорівнює нулю і на графіку «Життя», і на графіку «Рік».",
@@ -407,11 +494,15 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
       lifeEyebrow: "Life chart", lifeTitle: "Energy potential by year",
       pNear: "Around today", pBirth: "From birth", pLife: "90 years",
       from: "from", to: "to",
-      lifeHint: "The cycle repeats every {n}. Each digit lasts one year, from one birthday to the next. Tap a point or a year in the table to open that year’s chart.",
+      lifeHint: "The cycle repeats every {n}. Each digit lasts one year, from one birthday to the next. Tap a point to see its dates and the month-by-month breakdown.",
+      sheetLife: "Life chart · year", sheetYear: "Year chart · month",
+      byMonth: "By month", openYear: "Open Year chart", close: "Close",
+      prev: "Previous point", next: "Next point",
+      lifeLevel: "Life level this year", zzBadge: "zero in zero", nowBadge: "now",
       yearEyebrow: "Year chart",
       yearTitle: "Year from {date}",
       periodLbl: "Year", current: "Current",
-      yearHint: "Each digit lasts one month, starting on the birthday. The dashed line is this year’s Life level.",
+      yearHint: "Each digit lasts one month, starting on the birthday. The dashed line is this year’s Life level. Tap a point to see its dates.",
       colValue: "Energy potential", colYear: "Calendar year", colStart: "Starts",
       zzEyebrow: "Zero in zero", zzTitle: "Upcoming “zero in zero” periods",
       zzExplain: "“Zero in zero” is when the Life chart and the Year chart are both at zero during the same period.",
@@ -610,11 +701,15 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
       tip.style.left = left + "px"; tip.style.top = top + "px";
     }
     function hide() { tip.hidden = true; focus.setAttribute("visibility", "hidden"); }
-    svg.addEventListener("pointermove", show);
-    svg.addEventListener("pointerdown", show);
+    // hover tooltip is for mice only; a tap (or click) opens the details sheet
+    svg.addEventListener("pointermove", ev => { if (ev.pointerType === "mouse") show(ev); });
     svg.addEventListener("pointerleave", hide);
-    if (cfg.onPick) svg.addEventListener("click", ev => { const { best } = nearest(ev); if (best) cfg.onPick(best); });
-    svg.style.cursor = cfg.onPick ? "pointer" : "crosshair";
+    svg.addEventListener("click", ev => {
+      const { best } = nearest(ev);
+      hide();
+      if (best && cfg.onPick) cfg.onPick(best, visible);
+    });
+    svg.style.cursor = "pointer";
   }
 
   /* ---------- renderers ---------- */
@@ -679,7 +774,7 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
     for (let Yr = S.from; Yr <= S.to; Yr++) if ((Yr - S.from) % step === 0 || Yr === S.to) ticks.push({ t: M.bday(Yr), label: String(Yr) });
     drawChart($("lifeChart"), {
       label: t("lifeTitle"), domain: [M.bday(S.from), M.bday(S.to)], points: pts, ticks, minTickGap: 34,
-      onPick: p => { S.period = p.Y; renderYear(); $("yearPanel").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); }
+      onPick: (p, vis) => { const items = vis.map(q => q.Y); openSheet("life", items, items.indexOf(p.Y)); }
     });
     // table: like the method's own — digits across, years down
     const cur = today >= M.bday(M.y) ? M.periodOf(today) : null;
@@ -716,7 +811,8 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
       label: $("yearTitle").textContent, domain: [M.bday(Yr), M.bday(Yr + 1)], points,
       tail: { t: M.bday(Yr + 1), v: pts[11].v },
       ticks: pts.map(p => ({ t: p.t, label: `${p.t.getDate()} ${mf.format(p.t).replace(".", "")}` })),
-      minTickGap: 52, overlay: lv, windows
+      minTickGap: 52, overlay: lv, windows,
+      onPick: p => openSheet("year", pts.map(q => ({ Y: Yr, k: q.k })), p.k)
     });
     const rows = Math.ceil(12 / D.length);
     let h = `<tr><th class="rowh">${esc(t("colValue"))}</th>${D.map(v => `<th style="background:${band(v)}">${v}</th>`).join("")}</tr>`;
@@ -743,16 +839,83 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
     }).join("") : `<li class="muted">${esc(t("zzNone"))}</li>`;
   }
 
+  /* ---------- point details sheet ---------- */
+  const sheet = { kind: null, items: [], idx: 0 };
+  const isNow = (a, b) => today >= a && today < b;
+  const badge = (cls, txt) => `<span class="badge${cls}">${esc(txt)}</span>`;
+  const chip = v => `<span class="chip${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>`;
+  const range = (a, b) => `${fmt(a)} – ${fmt(dayBefore(b))}`;
+
+  function openSheet(kind, items, idx) {
+    sheet.kind = kind; sheet.items = items; sheet.idx = Math.max(0, idx);
+    renderSheet();
+    const dlg = $("sheet");
+    if (!dlg.open) { try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); } }
+  }
+  function closeSheet() {
+    const dlg = $("sheet");
+    if (dlg.open) { try { dlg.close(); } catch (e) { dlg.removeAttribute("open"); } }
+    sheet.kind = null;
+  }
+  function stepSheet(dir) {
+    const i = sheet.idx + dir;
+    if (i < 0 || i >= sheet.items.length) return;
+    sheet.idx = i; renderSheet();
+  }
+
+  function renderSheet() {
+    if (!sheet.kind) return;
+    const it = sheet.items[sheet.idx];
+    const means = t("meanings");
+    let head, body;
+    if (sheet.kind === "life") {
+      const Yr = it, a = M.bday(Yr), b = M.bday(Yr + 1), v = M.lifeValue(Yr);
+      const yp = M.yearPoints(Yr);
+      head = range(a, b);
+      body = `<div class="sv"><span class="big${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>
+          <div><div class="mean">${esc(means[v])}</div>${isNow(a, b) ? `<div class="badges">${badge("", t("nowBadge"))}</div>` : ""}</div></div>
+        <div class="sub"><div class="eyebrow">${esc(t("byMonth"))}</div>
+          <div class="formula-s">${M.d} × ${M.m} × ${Yr} = ${yp.product}</div>
+          <ul class="mlist">${yp.pts.map(p => {
+            const zz = v === 0 && p.v === 0, cur = isNow(p.t, p.end);
+            return `<li class="${zz ? "zz" : ""}${cur ? " cur" : ""}">${chip(p.v)}
+              <span class="top-row"><span class="when">${range(p.t, p.end)}</span>${cur ? badge("", t("nowBadge")) : ""}${zz ? badge(" z", t("zzBadge")) : ""}</span>
+              <span class="m">${esc(means[p.v])}</span></li>`;
+          }).join("")}</ul></div>`;
+    } else {
+      const Yr = it.Y, p = M.yearPoints(Yr).pts[it.k], lv = M.lifeValue(Yr);
+      const zz = lv === 0 && p.v === 0, cur = isNow(p.t, p.end);
+      head = range(p.t, p.end);
+      body = `<div class="sv"><span class="big${p.v === 0 ? " z" : ""}" style="background:${band(p.v)}">${p.v}</span>
+          <div><div class="mean">${esc(means[p.v])}</div>${cur || zz ? `<div class="badges">${cur ? badge("", t("nowBadge")) : ""}${zz ? badge(" z", t("zzBadge")) : ""}</div>` : ""}</div></div>
+        <div class="sub"><div class="eyebrow">${esc(t("lifeLevel"))}</div>
+          <div class="lifelvl">${chip(lv)}<span class="when">${range(M.bday(Yr), M.bday(Yr + 1))}</span><span class="m">${esc(means[lv])}</span></div></div>`;
+    }
+    $("sheetKind").textContent = sheet.kind === "life" ? t("sheetLife") : t("sheetYear");
+    $("sheetTitle").textContent = head;
+    $("sheetBody").innerHTML = body;
+    $("sheetBody").scrollTop = 0;
+    $("sheetClose").setAttribute("aria-label", t("close"));
+    $("sheetPrev").setAttribute("aria-label", t("prev"));
+    $("sheetNext").setAttribute("aria-label", t("next"));
+    $("sheetPrev").disabled = sheet.idx <= 0;
+    $("sheetNext").disabled = sheet.idx >= sheet.items.length - 1;
+    $("sheetOpen").hidden = sheet.kind !== "life";
+    $("sheetSpacer").hidden = sheet.kind === "life";
+    $("sheetOpen").textContent = t("openYear");
+  }
+
   function renderAll() {
     renderStatic();
     $("inDay").value = S.d; $("inMonth").value = String(S.m); $("inYear").value = S.y;
     $("sampleNote").innerHTML = S.isSample ? t("sample") : "";
-    renderNow(); renderLife(); renderYear(); renderZeroList();
+    renderNow(); renderLife(); renderYear(); renderZeroList(); renderSheet();
   }
 
   /* ---------- input ---------- */
   function setDate(d, m, y, isSample) {
     S.d = d; S.m = m; S.y = y; S.isSample = !!isSample;
+    closeSheet();
     M = model(d, m, y);
     applyPreset("near");
     S.period = today >= M.bday(y) ? M.periodOf(today) : y;
@@ -802,6 +965,26 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
   $("prevYear").addEventListener("click", () => { S.period = Math.max(M.y, S.period - 1); renderYear(); });
   $("nextYear").addEventListener("click", () => { S.period = Math.min(M.y + 100, S.period + 1); renderYear(); });
   $("curYear").addEventListener("click", () => { S.period = today >= M.bday(M.y) ? M.periodOf(today) : M.y; renderYear(); });
+
+  const dlg = $("sheet");
+  $("sheetClose").addEventListener("click", closeSheet);
+  $("sheetPrev").addEventListener("click", () => stepSheet(-1));
+  $("sheetNext").addEventListener("click", () => stepSheet(1));
+  $("sheetOpen").addEventListener("click", () => { const Yr = sheet.items[sheet.idx]; closeSheet(); openYear(Yr); });
+  dlg.addEventListener("click", ev => { if (ev.target === dlg) closeSheet(); });   // backdrop
+  dlg.addEventListener("close", () => { sheet.kind = null; });
+  dlg.addEventListener("keydown", ev => {
+    if (ev.key === "ArrowLeft") { ev.preventDefault(); stepSheet(-1); }
+    if (ev.key === "ArrowRight") { ev.preventDefault(); stepSheet(1); }
+  });
+  // swipe the sheet left/right to step between points, down to close
+  let sx = 0, sy = 0;
+  dlg.addEventListener("touchstart", ev => { sx = ev.touches[0].clientX; sy = ev.touches[0].clientY; }, { passive: true });
+  dlg.addEventListener("touchend", ev => {
+    const dx = ev.changedTouches[0].clientX - sx, dy = ev.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) stepSheet(dx < 0 ? 1 : -1);
+    else if (dy > 90 && Math.abs(dy) > Math.abs(dx) * 1.5 && $("sheetBody").scrollTop <= 0) closeSheet();
+  }, { passive: true });
 
   let rz = 0, lastW = 0;
   new ResizeObserver(() => {
