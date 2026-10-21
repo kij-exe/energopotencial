@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Onest:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
 <style>
-/* Layout: a calculator band (date + "now" status) over two instrument panels — Life by years, Year by months — then zero periods and the number key. */
+/* Layout: a calculator band (date + "now" status) over two swipeable timeline panels — Life by years, Year by months — then zero periods and the number key. */
 :root {
   --bg: #edf0f5;
   --surface: #ffffff;
@@ -91,7 +91,7 @@ form.birth { display: grid; gap: 14px; align-content: start; }
 .fields { display: grid; grid-template-columns: 72px minmax(0, 1fr) 96px; gap: 8px; }
 .field { display: grid; gap: 4px; min-width: 0; }
 .field label { font-size: 12px; color: var(--muted); }
-.field input, .field select, .ctl select, .ctl input {
+.field input, .field select, .ctl select {
   width: 100%; min-width: 0; height: 42px; padding: 0 10px;
   border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
   font-family: var(--f-mono); font-size: 16px; font-variant-numeric: tabular-nums;
@@ -100,6 +100,7 @@ form.birth { display: grid; gap: 14px; align-content: start; }
 .btn { height: 42px; padding: 0 18px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer; }
 .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 500; }
 .btn.small { height: 34px; padding: 0 12px; font-size: 13px; }
+.btn:disabled { opacity: .4; cursor: default; }
 .formrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .err { color: var(--zero); font-size: 13px; min-height: 1.2em; }
 .sample { font-size: 13px; color: var(--muted); }
@@ -118,35 +119,60 @@ form.birth { display: grid; gap: 14px; align-content: start; }
 .zz.on .dot { background: var(--zero); }
 
 /* panels */
-.panel { display: grid; gap: 16px; }
+.panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.panel > * { min-width: 0; }
 .panel-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 .formula { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font: 500 clamp(18px, 2.6vw, 24px)/1.2 var(--f-mono); font-variant-numeric: tabular-nums; }
 .formula .op { color: var(--muted); font-weight: 400; }
 .chips { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 .chip { display: inline-grid; place-items: center; min-width: 30px; height: 36px; padding: 0 6px; border-radius: 6px; font: 600 20px/1 var(--f-mono); color: var(--ink); }
 .chip.z { box-shadow: inset 0 0 0 2px var(--zero); }
-.hint { font-size: 13px; color: var(--muted); }
+.hint { font-size: 13px; color: var(--muted); max-width: 80ch; }
 .ctls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-.ctl input { width: 84px; height: 34px; font-size: 14px; }
 .ctl select { height: 34px; font-size: 14px; width: auto; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { border: 0; border-right: 1px solid var(--line); background: var(--surface); padding: 0 12px; height: 32px; font-size: 13px; cursor: pointer; }
+.seg button { border: 0; border-right: 1px solid var(--line); background: var(--surface); padding: 0 12px; height: 32px; font-size: 13px; cursor: pointer; font-variant-numeric: tabular-nums; }
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 
-.chart { position: relative; min-width: 0; touch-action: pan-y; }
-.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.chart text { font-family: var(--f-mono); font-size: 11px; fill: var(--muted); }
-.chart .yl { fill: var(--ink); font-weight: 600; }
-.chart .tl { fill: var(--accent); font-weight: 600; }
-.tip {
-  position: absolute; pointer-events: none; z-index: 2; min-width: 160px; max-width: 240px;
-  padding: 10px 12px; border-radius: 8px; background: var(--ink); color: var(--bg);
-  font-size: 13px; line-height: 1.35; box-shadow: 0 6px 20px rgba(0,0,0,.18);
+/* swipeable timeline */
+.chart-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.vis { font: 500 13px/1.2 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+.vis .arr { color: var(--muted); }
+.keyline { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
+.keyline span { display: inline-flex; align-items: center; gap: 6px; }
+.keyline i { display: inline-block; width: 22px; border-top: 2.5px solid var(--accent); }
+.keyline i.dash { border-top: 2px dashed var(--ink); opacity: .6; }
+.tl { position: relative; min-width: 0; }
+.tl-y { position: absolute; left: 0; top: 0; width: 30px; display: block; }
+.tl-scroll {
+  margin-left: 30px; overflow-x: auto; overflow-y: hidden;
+  overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  cursor: grab; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
 }
-.tip .tv { font: 700 22px/1 var(--f-display); margin-block: 4px; }
-.tip .td { font: 400 11px/1.3 var(--f-mono); opacity: .8; }
+.tl-scroll.dragging { cursor: grabbing; }
+.tl-content { position: relative; }
+.tl-svg { position: absolute; top: 0; display: block; }
+.tl text { font-family: var(--f-mono); font-size: 11px; fill: var(--muted); }
+.tl .yl { fill: var(--ink); font-weight: 600; }
+.tl .yr { fill: var(--ink); font-weight: 600; }
+.tl .tdy { fill: var(--accent); font-weight: 600; }
+.tl .pill { fill: var(--accent-ink); font-weight: 600; font-size: 12px; }
+
+.readout {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: center;
+  padding: 12px 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line);
+}
+.readout .big { width: 52px; height: 58px; display: grid; place-items: center; border-radius: 8px; font: 700 30px/1 var(--f-display); }
+.readout .big.z { box-shadow: inset 0 0 0 2px var(--zero); }
+.readout .rd { display: grid; gap: 2px; min-width: 0; }
+.readout .when { font: 600 15px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
+.readout .mean { font-size: 13px; line-height: 1.35; }
+.readout .peak { font: 400 12px/1.3 var(--f-mono); color: var(--muted); }
+.readout .badges { margin-top: 2px; }
 
 .tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
 table.pts { border-collapse: collapse; width: 100%; font: 400 13px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
@@ -169,7 +195,7 @@ table.pts td button { border: 0; background: none; padding: 0; cursor: pointer; 
 .legend li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: center; padding: 4px 0; }
 .legend .chip { width: 36px; }
 
-/* point details: centered card on desktop, bottom sheet on phones */
+/* period details: centered card on desktop, bottom sheet on phones */
 body:has(dialog[open]) { overflow: hidden; }
 dialog.sheet {
   border: 0; padding: 0; margin: auto;
@@ -190,20 +216,18 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
 .sv .big { width: 64px; height: 72px; display: grid; place-items: center; border-radius: 10px; font: 700 40px/1 var(--f-display); }
 .sv .big.z { box-shadow: inset 0 0 0 2px var(--zero); }
 .sv .mean { font-weight: 500; line-height: 1.35; }
+.sv .peak { font: 400 12px/1.3 var(--f-mono); color: var(--muted); margin-top: 4px; }
 .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .badge { padding: 2px 8px; border-radius: 999px; font: 600 11px/1.5 var(--f-body); text-transform: uppercase; letter-spacing: .06em; background: var(--accent); color: var(--accent-ink); }
 .badge.z { background: var(--zero); color: var(--surface); }
 .sub { display: grid; gap: 8px; }
-.sub .formula-s { font: 400 13px/1.3 var(--f-mono); color: var(--muted); }
-.lifelvl { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--bg); }
-.lifelvl .chip { grid-row: span 2; width: 36px; }
-.lifelvl .when, .mlist .when { font: 400 13px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
-.lifelvl .m, .mlist .m { font-size: 12px; line-height: 1.3; color: var(--muted); }
 .mlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .mlist li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 2px 12px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--bg); }
 .mlist li .chip { grid-row: span 2; width: 36px; height: 34px; font-size: 18px; }
 .mlist li.zz { background: var(--zero-soft); }
 .mlist li.cur { box-shadow: inset 0 0 0 2px var(--accent); }
+.mlist .when { font: 400 13px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
+.mlist .m { font-size: 12px; line-height: 1.3; color: var(--muted); }
 .mlist .top-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .mlist .badge { font-size: 10px; padding: 0 6px; }
 @media (max-width: 600px) {
@@ -238,13 +262,12 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
   table.pts th, table.pts td { padding: 6px 5px; font-size: 12px; }
   table.pts th { font-size: 16px; }
   /* 16px keeps iOS from zooming in on focus */
-  .ctl input, .ctl select { font-size: 16px; height: 38px; }
+  .ctl select { font-size: 16px; height: 38px; }
   .seg button { height: 36px; }
   .btn.small { height: 38px; }
   .panel-head .ctls { width: 100%; }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .chart path.ln { transition: d .3s ease; }
+  .readout { grid-template-columns: auto minmax(0, 1fr); }
+  .readout .btn { grid-column: 1 / -1; }
 }
 </style>
 </head>
@@ -296,18 +319,19 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
         <h2 data-i="lifeTitle">Энергопотенциал по годам</h2>
       </div>
       <div class="ctls">
-        <div class="seg" role="group" id="lifePresets">
-          <button type="button" data-preset="near" data-i="pNear">±10 лет</button>
-          <button type="button" data-preset="birth" data-i="pBirth">С рождения</button>
-          <button type="button" data-preset="life" data-i="pLife">90 лет</button>
+        <div class="seg" role="group" id="lifeSpan">
+          <button type="button" data-span="10"></button>
+          <button type="button" data-span="20"></button>
+          <button type="button" data-span="40"></button>
         </div>
-        <span class="ctl"><label for="inFrom" data-i="from">с</label><input id="inFrom" inputmode="numeric" maxlength="4"></span>
-        <span class="ctl"><label for="inTo" data-i="to">по</label><input id="inTo" inputmode="numeric" maxlength="4"></span>
+        <button class="btn ghost small" type="button" id="lifeToday" data-i="todayBtn">Сегодня</button>
       </div>
     </div>
     <div class="formula" id="lifeFormula"></div>
     <p class="hint" id="lifeHint"></p>
-    <div class="chart" id="lifeChart"></div>
+    <div class="chart-bar"><span class="vis" id="lifeVis"></span></div>
+    <div id="lifeChart"></div>
+    <div class="readout" id="lifeRead" aria-live="polite"></div>
     <div class="tablebox"><table class="pts" id="lifeTable"></table></div>
   </section>
 
@@ -321,12 +345,22 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
         <button class="btn ghost small" type="button" id="prevYear" aria-label="−1">←</button>
         <span class="ctl"><label for="inPeriod" class="sr" data-i="periodLbl">Год</label><select id="inPeriod"></select></span>
         <button class="btn ghost small" type="button" id="nextYear" aria-label="+1">→</button>
-        <button class="btn ghost small" type="button" id="curYear" data-i="current">Текущий</button>
+        <div class="seg" role="group" id="yearSpan">
+          <button type="button" data-span="6"></button>
+          <button type="button" data-span="12"></button>
+          <button type="button" data-span="24"></button>
+        </div>
+        <button class="btn ghost small" type="button" id="yearToday" data-i="todayBtn">Сегодня</button>
       </div>
     </div>
     <div class="formula" id="yearFormula"></div>
     <p class="hint" id="yearHint"></p>
-    <div class="chart" id="yearChart"></div>
+    <div class="chart-bar">
+      <span class="vis" id="yearVis"></span>
+      <span class="keyline"><span><i></i><b data-i="year" style="font-weight:500">Год</b></span><span><i class="dash"></i><b data-i="life" style="font-weight:500">Жизнь</b></span></span>
+    </div>
+    <div id="yearChart"></div>
+    <div class="readout" id="yearRead" aria-live="polite"></div>
     <div class="tablebox"><table class="pts" id="yearTable"></table></div>
   </section>
 
@@ -379,36 +413,35 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       locale: "ru-RU",
       eyebrow: "Динамика состояний",
       title: "График энергопотенциала",
-      lede: "Введите дату рождения. Калькулятор перемножит день, месяц и год и построит два графика: «Жизнь» — по годам, «Год» — по месяцам выбранного года. Каждый график начинается с дня рождения.",
+      lede: "Введите дату рождения. Калькулятор перемножит день, месяц и год и построит два графика: «Жизнь» — по годам, «Год» — по месяцам. Каждый график начинается с дня рождения.",
       birth: "Дата рождения", day: "День", month: "Месяц", year: "Год", build: "Построить",
       sample: "Сейчас показан пример: <b>27.06.1956</b>",
       now: "Сейчас",
-      lifeNow: "Год жизни", monthNow: "Текущий месяц",
-      until: "по",
+      lifeNow: "График «Жизнь»", monthNow: "График «Год»",
       notBorn: "Дата рождения ещё не наступила — графики начнутся с неё.",
       zzOn: "Сейчас период «ноль в нуле»: на обоих графиках энергопотенциал равен нулю.",
       zzOff: "Сейчас не «ноль в нуле».",
       zzNext: "Ближайший — с {date}.",
       lifeEyebrow: "График «Жизнь»", lifeTitle: "Энергопотенциал по годам",
-      pNear: "Вокруг сегодня", pBirth: "С рождения", pLife: "90 лет",
-      from: "с", to: "по",
-      lifeHint: "Цикл повторяется каждые {n}. Каждая цифра действует год — от дня рождения до следующего. Нажмите на точку графика, чтобы увидеть даты и разбивку года по месяцам.",
-      sheetLife: "График «Жизнь» · год", sheetYear: "График «Год» · месяц",
-      byMonth: "По месяцам", openYear: "Открыть график года", close: "Закрыть",
-      prev: "Предыдущая точка", next: "Следующая точка",
-      lifeLevel: "Уровень «Жизнь» в этом году", zzBadge: "ноль в нуле", nowBadge: "сейчас",
+      lifeHint: "Цикл повторяется каждые {n}. Точки — пики в дни рождения; между ними линия проходит через промежуточные числа. Листайте график пальцем и нажмите на любое место — увидите, какое число действует и в какие даты.",
       yearEyebrow: "График «Год»",
       yearTitle: "Год с {date}",
-      periodLbl: "Год", current: "Текущий",
-      yearHint: "Каждая цифра действует месяц, начиная с дня рождения. Пунктир — уровень графика «Жизнь» в этом году. Нажмите на точку, чтобы увидеть даты.",
-      colValue: "Энергопотенциал", colYear: "Календарный год", colStart: "Начало действия",
+      periodLbl: "Год",
+      yearHint: "Точки — пики каждый месяц, начиная с дня рождения; между ними линия проходит через промежуточные числа. Пунктир — график «Жизнь». Листайте и нажмите на график, чтобы увидеть даты.",
+      todayBtn: "Сегодня", details: "Подробнее", peak: "пик",
+      spanYears: n => n + " лет", spanMonths: n => n + " мес",
+      colValue: "Энергопотенциал", colYear: "Год пика", colStart: "Дата пика",
       zzEyebrow: "Ноль в нуле", zzTitle: "Ближайшие периоды «ноль в нуле»",
       zzExplain: "«Ноль в нуле» — это когда в один и тот же период энергопотенциал равен нулю и на графике «Жизнь», и на графике «Год».",
       zzNone: "В ближайшие 60 лет таких периодов нет.",
-      show: "Показать",
-      inNow: "идёт сейчас",
+      show: "Показать", inNow: "идёт сейчас",
       legendEyebrow: "Ключ", legendTitle: "Значение чисел",
       today: "сегодня", life: "Жизнь",
+      sheetLife: "График «Жизнь»", sheetYear: "График «Год»",
+      inYear: "График «Год» в этот период", inLife: "График «Жизнь» в этот период",
+      openYear: "Показать на графике «Год»", close: "Закрыть",
+      prev: "Предыдущий период", next: "Следующий период",
+      zzBadge: "ноль в нуле", nowBadge: "сейчас",
       errDate: "Такой даты нет — проверьте день и месяц.",
       errYear: "Год рождения — от 1900 до 2100.",
       disclaimer: "Расчёт по нумерологической методике «Динамика состояний: график энергопотенциала». Результат не является медицинской, психологической или финансовой рекомендацией.",
@@ -430,36 +463,35 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       locale: "uk-UA",
       eyebrow: "Динаміка станів",
       title: "Графік енергопотенціалу",
-      lede: "Введіть дату народження. Калькулятор перемножить день, місяць і рік та побудує два графіки: «Життя» — за роками, «Рік» — за місяцями обраного року. Кожен графік починається з дня народження.",
+      lede: "Введіть дату народження. Калькулятор перемножить день, місяць і рік та побудує два графіки: «Життя» — за роками, «Рік» — за місяцями. Кожен графік починається з дня народження.",
       birth: "Дата народження", day: "День", month: "Місяць", year: "Рік", build: "Побудувати",
       sample: "Зараз показано приклад: <b>27.06.1956</b>",
       now: "Зараз",
-      lifeNow: "Рік життя", monthNow: "Поточний місяць",
-      until: "по",
+      lifeNow: "Графік «Життя»", monthNow: "Графік «Рік»",
       notBorn: "Дата народження ще не настала — графіки почнуться з неї.",
       zzOn: "Зараз період «нуль у нулі»: на обох графіках енергопотенціал дорівнює нулю.",
       zzOff: "Зараз не «нуль у нулі».",
       zzNext: "Найближчий — з {date}.",
       lifeEyebrow: "Графік «Життя»", lifeTitle: "Енергопотенціал за роками",
-      pNear: "Навколо сьогодні", pBirth: "Від народження", pLife: "90 років",
-      from: "з", to: "по",
-      lifeHint: "Цикл повторюється кожні {n}. Кожна цифра діє рік — від дня народження до наступного. Натисніть на точку графіка, щоб побачити дати й розбивку року за місяцями.",
-      sheetLife: "Графік «Життя» · рік", sheetYear: "Графік «Рік» · місяць",
-      byMonth: "За місяцями", openYear: "Відкрити графік року", close: "Закрити",
-      prev: "Попередня точка", next: "Наступна точка",
-      lifeLevel: "Рівень «Життя» цього року", zzBadge: "нуль у нулі", nowBadge: "зараз",
+      lifeHint: "Цикл повторюється кожні {n}. Точки — піки в дні народження; між ними лінія проходить через проміжні числа. Гортайте графік пальцем і натисніть на будь-яке місце — побачите, яке число діє і в які дати.",
       yearEyebrow: "Графік «Рік»",
       yearTitle: "Рік з {date}",
-      periodLbl: "Рік", current: "Поточний",
-      yearHint: "Кожна цифра діє місяць, починаючи з дня народження. Пунктир — рівень графіка «Життя» цього року. Натисніть на точку, щоб побачити дати.",
-      colValue: "Енергопотенціал", colYear: "Календарний рік", colStart: "Початок дії",
+      periodLbl: "Рік",
+      yearHint: "Точки — піки щомісяця, починаючи з дня народження; між ними лінія проходить через проміжні числа. Пунктир — графік «Життя». Гортайте й натисніть на графік, щоб побачити дати.",
+      todayBtn: "Сьогодні", details: "Детальніше", peak: "пік",
+      spanYears: n => n + " років", spanMonths: n => n + " міс",
+      colValue: "Енергопотенціал", colYear: "Рік піку", colStart: "Дата піку",
       zzEyebrow: "Нуль у нулі", zzTitle: "Найближчі періоди «нуль у нулі»",
       zzExplain: "«Нуль у нулі» — це коли в один і той самий період енергопотенціал дорівнює нулю і на графіку «Життя», і на графіку «Рік».",
       zzNone: "Найближчі 60 років таких періодів немає.",
-      show: "Показати",
-      inNow: "триває зараз",
+      show: "Показати", inNow: "триває зараз",
       legendEyebrow: "Ключ", legendTitle: "Значення чисел",
       today: "сьогодні", life: "Життя",
+      sheetLife: "Графік «Життя»", sheetYear: "Графік «Рік»",
+      inYear: "Графік «Рік» у цей період", inLife: "Графік «Життя» у цей період",
+      openYear: "Показати на графіку «Рік»", close: "Закрити",
+      prev: "Попередній період", next: "Наступний період",
+      zzBadge: "нуль у нулі", nowBadge: "зараз",
       errDate: "Такої дати немає — перевірте день і місяць.",
       errYear: "Рік народження — від 1900 до 2100.",
       disclaimer: "Розрахунок за нумерологічною методикою «Динаміка станів: графік енергопотенціалу». Результат не є медичною, психологічною чи фінансовою рекомендацією.",
@@ -481,36 +513,35 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       locale: "en-GB",
       eyebrow: "Dynamics of states",
       title: "Energy Potential Chart",
-      lede: "Enter a date of birth. The calculator multiplies day, month and year and draws two charts: Life, by year, and Year, by month of the chosen year. Each chart starts on the birthday.",
+      lede: "Enter a date of birth. The calculator multiplies day, month and year and draws two charts: Life, by year, and Year, by month. Each chart starts on the birthday.",
       birth: "Date of birth", day: "Day", month: "Month", year: "Year", build: "Calculate",
       sample: "Showing an example: <b>27.06.1956</b>",
       now: "Right now",
-      lifeNow: "Life year", monthNow: "This month",
-      until: "to",
+      lifeNow: "Life chart", monthNow: "Year chart",
       notBorn: "This birth date is still ahead — the charts start from it.",
       zzOn: "This is a “zero in zero” period: both charts are at zero.",
       zzOff: "Not a “zero in zero” period right now.",
       zzNext: "The next one starts {date}.",
       lifeEyebrow: "Life chart", lifeTitle: "Energy potential by year",
-      pNear: "Around today", pBirth: "From birth", pLife: "90 years",
-      from: "from", to: "to",
-      lifeHint: "The cycle repeats every {n}. Each digit lasts one year, from one birthday to the next. Tap a point to see its dates and the month-by-month breakdown.",
-      sheetLife: "Life chart · year", sheetYear: "Year chart · month",
-      byMonth: "By month", openYear: "Open Year chart", close: "Close",
-      prev: "Previous point", next: "Next point",
-      lifeLevel: "Life level this year", zzBadge: "zero in zero", nowBadge: "now",
+      lifeHint: "The cycle repeats every {n}. Points are peaks on each birthday; between them the line passes through the numbers in between. Swipe the chart and tap anywhere to see which number is active and for which dates.",
       yearEyebrow: "Year chart",
       yearTitle: "Year from {date}",
-      periodLbl: "Year", current: "Current",
-      yearHint: "Each digit lasts one month, starting on the birthday. The dashed line is this year’s Life level. Tap a point to see its dates.",
-      colValue: "Energy potential", colYear: "Calendar year", colStart: "Starts",
+      periodLbl: "Year",
+      yearHint: "Points are monthly peaks, starting on the birthday; between them the line passes through the numbers in between. The dashed line is the Life chart. Swipe and tap the chart to see dates.",
+      todayBtn: "Today", details: "Details", peak: "peak",
+      spanYears: n => n + " yrs", spanMonths: n => n + " mo",
+      colValue: "Energy potential", colYear: "Peak year", colStart: "Peak date",
       zzEyebrow: "Zero in zero", zzTitle: "Upcoming “zero in zero” periods",
       zzExplain: "“Zero in zero” is when the Life chart and the Year chart are both at zero during the same period.",
       zzNone: "No such periods in the next 60 years.",
-      show: "Show",
-      inNow: "now",
+      show: "Show", inNow: "now",
       legendEyebrow: "Key", legendTitle: "What the numbers mean",
       today: "today", life: "Life",
+      sheetLife: "Life chart", sheetYear: "Year chart",
+      inYear: "Year chart during this period", inLife: "Life chart during this period",
+      openYear: "Show on the Year chart", close: "Close",
+      prev: "Previous period", next: "Next period",
+      zzBadge: "zero in zero", nowBadge: "now",
       errDate: "That date doesn’t exist — check the day and month.",
       errYear: "Birth year must be between 1900 and 2100.",
       disclaimer: "Calculated with the numerology method “Dynamics of states: the energy potential chart”. This is not medical, psychological or financial advice.",
@@ -541,6 +572,7 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
   };
 
   /* ---------- date + numerology core ---------- */
+  const DAY = 864e5, YEAR = 365.2425 * DAY, MONTH = YEAR / 12, SPAN_YEARS = 100;
   const dim = (y, m) => new Date(y, m, 0).getDate();           // m is 1-based
   const mkDate = (y, m0, d) => {                                 // m0 0-based, may overflow
     const yy = y + Math.floor(m0 / 12), mm = ((m0 % 12) + 12) % 12;
@@ -548,6 +580,51 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
   };
   const digits = n => String(n).split("").map(Number);
   const today = (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); })();
+  const NOW = +today + DAY / 2;                                   // middle of today
+
+  // last index i with arr[i][key] <= t, or -1
+  function bsearch(arr, t, key) {
+    let lo = 0, hi = arr.length - 1, ans = -1;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (arr[mid][key] <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+    return ans;
+  }
+  const runIndexAt = (runs, t) => Math.max(0, Math.min(runs.length - 1, bsearch(runs, t, "start")));
+  function valueAt(pts, t) {
+    const i = bsearch(pts, t, "t");
+    if (i < 0) return pts[0].v;
+    if (i >= pts.length - 1) return pts[pts.length - 1].v;
+    const a = pts[i], b = pts[i + 1];
+    return a.v + (b.v - a.v) * (t - a.t) / (b.t - a.t);
+  }
+
+  // Split the continuous line into runs where it sits inside one number's band (v ± 0.5).
+  // Points are whole numbers, so crossings always fall strictly between two points.
+  function runsOf(pts) {
+    const runs = [];
+    let cur = { b: pts[0].v, start: pts[0].t };
+    for (let i = 1; i < pts.length; i++) {
+      const { t: t0, v: v0 } = pts[i - 1], { t: t1, v: v1 } = pts[i];
+      const dir = Math.sign(v1 - v0);
+      if (!dir) continue;
+      for (let x = cur.b + dir / 2; dir > 0 ? x < v1 : x > v1; x += dir) {
+        const tc = t0 + (x - v0) / (v1 - v0) * (t1 - t0);
+        cur.end = tc; runs.push(cur);
+        cur = { b: cur.b + dir, start: tc };
+      }
+    }
+    cur.end = pts[pts.length - 1].t; runs.push(cur);
+    return runs;
+  }
+  function intersect(A, B) {
+    const out = [];
+    let i = 0, j = 0;
+    while (i < A.length && j < B.length) {
+      const s = Math.max(A[i].start, B[j].start), e = Math.min(A[i].end, B[j].end);
+      if (e > s) out.push({ start: s, end: e });
+      if (A[i].end < B[j].end) i++; else j++;
+    }
+    return out;
+  }
 
   function model(d, m, y) {
     const lifeProduct = d * m * y;
@@ -555,168 +632,264 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     const L = lifeDigits.length;
     const bday = Y => mkDate(Y, m - 1, d);
     const lifeValue = Y => Y < y ? null : lifeDigits[(Y - y) % L];
-    const periodOf = t => { const Y = t.getFullYear(); return t >= bday(Y) ? Y : Y - 1; };
+    const periodOf = t => { const dt = new Date(t), Y = dt.getFullYear(); return dt >= bday(Y) ? Y : Y - 1; };
     function yearPoints(Y) {
       const D = digits(d * m * Y);
       const pts = [];
-      for (let k = 0; k < 12; k++) {
-        const t = mkDate(Y, m - 1 + k, d);
-        const end = k < 11 ? mkDate(Y, m + k, d) : bday(Y + 1);
-        pts.push({ t, end, v: D[k % D.length], k });
-      }
+      for (let k = 0; k < 12; k++) pts.push({ t: mkDate(Y, m - 1 + k, d), v: D[k % D.length], k });
       return { product: d * m * Y, digits: D, pts };
     }
-    return { d, m, y, lifeProduct, lifeDigits, L, bday, lifeValue, periodOf, yearPoints };
-  }
-
-  function zeroPeriods(M, fromY, years) {
-    const out = [];
-    for (let Y = Math.max(M.y, fromY); Y < fromY + years; Y++) {
-      if (M.lifeValue(Y) !== 0) continue;
-      const { pts } = M.yearPoints(Y);
-      let cur = null;
-      for (const p of pts) {
-        if (p.v === 0) {
-          if (cur) cur.end = p.end; else cur = { start: p.t, end: p.end, Y };
-        } else if (cur) { out.push(cur); cur = null; }
-      }
-      if (cur) out.push(cur);
-    }
-    // merge across birthday boundary
-    const merged = [];
-    for (const z of out) {
-      const last = merged[merged.length - 1];
-      if (last && +last.end === +z.start) last.end = z.end; else merged.push({ ...z });
-    }
-    return merged;
+    const END = y + SPAN_YEARS;
+    const lifePts = [];
+    for (let Y = y; Y <= END; Y++) lifePts.push({ t: +bday(Y), v: lifeValue(Y), Y });
+    const yearPts = [];
+    for (let Y = y; Y < END; Y++) for (const p of yearPoints(Y).pts) yearPts.push({ t: +p.t, v: p.v, Y, k: p.k });
+    yearPts.push({ t: +bday(END), v: yearPoints(END).pts[0].v, Y: END, k: 0 });
+    const lifeRuns = runsOf(lifePts), yearRuns = runsOf(yearPts);
+    const zz = intersect(lifeRuns.filter(r => r.b === 0), yearRuns.filter(r => r.b === 0));
+    return { d, m, y, END, lifeProduct, lifeDigits, L, bday, lifeValue, periodOf, yearPoints,
+      t0: lifePts[0].t, t1: lifePts[lifePts.length - 1].t, lifePts, yearPts, lifeRuns, yearRuns, zz };
   }
 
   /* ---------- state ---------- */
   const SAMPLE = { d: 27, m: 6, y: 1956 };
-  const S = { lang: "ru", d: SAMPLE.d, m: SAMPLE.m, y: SAMPLE.y, isSample: true, from: 0, to: 0, preset: "near", period: 0 };
+  // phones see ~10 years / ~6 months at a time, wider screens twice that
+  const phone = Math.min(window.innerWidth, document.documentElement.clientWidth || 1e9) < 600;
+  const S = { lang: "ru", d: SAMPLE.d, m: SAMPLE.m, y: SAMPLE.y, isSample: true,
+    lifeSpan: phone ? 10 : 20, yearSpan: phone ? 6 : 12, period: 0, sel: { life: 0, year: 0 } };
   let M = null;
 
   const $ = id => document.getElementById(id);
   const t = k => T[S.lang][k];
   const fmt = (dt, withYear = true) => {
+    dt = new Date(dt);
     const dd = String(dt.getDate()).padStart(2, "0"), mm = String(dt.getMonth() + 1).padStart(2, "0");
     return withYear ? `${dd}.${mm}.${dt.getFullYear()}` : `${dd}.${mm}`;
   };
   const dayBefore = dt => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() - 1);
+  const roundDay = ms => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + (d.getHours() >= 12 ? 1 : 0)); };
+  // inclusive calendar dates covered by [a, b)
+  function spanText(a, b) {
+    const s = roundDay(a), e0 = dayBefore(roundDay(b)), e = e0 < s ? s : e0;
+    return +s === +e ? fmt(s) : `${fmt(s)} – ${fmt(e)}`;
+  }
   const band = v => `var(--b${v})`;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-  function applyPreset(p) {
-    const nowY = today.getFullYear();
-    S.preset = p;
-    if (p === "near") { S.from = Math.max(M.y, nowY - 10); S.to = Math.max(S.from + 10, nowY + 10); }
-    if (p === "birth") { S.from = M.y; S.to = Math.max(M.y + 10, nowY + 10); }
-    if (p === "life") { S.from = M.y; S.to = M.y + 90; }
+  const monShort = ms => new Intl.DateTimeFormat(t("locale"), { month: "short" }).format(new Date(ms)).replace(".", "");
+  const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const inZZ = ms => M.zz.some(z => ms >= z.start && ms < z.end);
+  const runs = kind => kind === "life" ? M.lifeRuns : M.yearRuns;
+  const ptsOf = kind => kind === "life" ? M.lifePts : M.yearPts;
+  // the peak point (a dot with the run's own number) inside a run, if any
+  function peakOf(kind, r) {
+    const P = ptsOf(kind);
+    for (let i = Math.max(0, bsearch(P, r.start, "t")); i < P.length && P[i].t <= r.end; i++) if (P[i].v === r.b && P[i].t >= r.start) return P[i];
+    return null;
   }
 
-  /* ---------- chart ---------- */
-  let chartSeq = 0;
-  function drawChart(host, cfg) {
-    const W = Math.max(280, host.clientWidth || 700);
-    const H = Math.round(Math.max(250, Math.min(400, W * 0.5)));
-    const mg = { l: 30, r: cfg.overlay != null ? 54 : 14, t: 22, b: 30 };
-    const iw = W - mg.l - mg.r, ih = H - mg.t - mg.b;
-    const t0 = +cfg.domain[0], t1 = +cfg.domain[1];
-    const pad = 6;
-    const X = tt => mg.l + pad + (tt - t0) / (t1 - t0) * (iw - 2 * pad);
-    const Y = v => mg.t + (9.5 - v) / 10 * ih;
-    const id = "c" + (++chartSeq);
-    let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(cfg.label)}">`;
-    s += `<defs><clipPath id="${id}"><rect x="${mg.l}" y="${mg.t - 6}" width="${iw}" height="${ih + 12}"/></clipPath>
-      <pattern id="${id}h" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="var(--b0)"/><line x1="0" y1="0" x2="0" y2="7" stroke="var(--zero)" stroke-opacity=".22" stroke-width="2"/></pattern></defs>`;
-    for (let v = 0; v <= 9; v++) {
-      s += `<rect x="${mg.l}" y="${Y(v + .5)}" width="${iw}" height="${ih / 10}" fill="${v === 0 ? `url(#${id}h)` : band(v)}"/>`;
-      s += `<text class="yl" x="${mg.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
-    }
-    // highlighted windows (zero in zero)
-    for (const w of cfg.windows || []) {
-      const a = Math.max(X(+w.start), mg.l), b = Math.min(X(+w.end), mg.l + iw);
-      if (b > a) s += `<rect x="${a}" y="${mg.t}" width="${b - a}" height="${ih}" fill="var(--zero)" fill-opacity=".16"/>`;
-    }
-    // x ticks
-    let lastX = -1e9;
-    for (const tk of cfg.ticks) {
-      const x = X(+tk.t);
-      if (x < mg.l - 1 || x > mg.l + iw + 1) continue;
-      s += `<line x1="${x}" x2="${x}" y1="${mg.t}" y2="${mg.t + ih}" stroke="var(--ink)" stroke-opacity=".07"/>`;
-      if (x - lastX >= cfg.minTickGap) {
-        s += `<text x="${x}" y="${H - 10}" text-anchor="middle">${esc(tk.label)}</text>`;
-        lastX = x;
-      }
-    }
-    s += `<rect x="${mg.l}" y="${mg.t}" width="${iw}" height="${ih}" fill="none" stroke="var(--line)"/>`;
-    // today
-    if (+today >= t0 && +today <= t1) {
-      const x = X(+today);
-      s += `<line x1="${x}" x2="${x}" y1="${mg.t - 6}" y2="${mg.t + ih}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
-      s += `<text class="tl" x="${x}" y="${mg.t - 9}" text-anchor="middle">${esc(t("today"))}</text>`;
-    }
-    // overlay level
-    if (cfg.overlay != null) {
-      const yy = Y(cfg.overlay);
-      s += `<line x1="${mg.l}" x2="${mg.l + iw}" y1="${yy}" y2="${yy}" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="6 4" stroke-opacity=".7"/>`;
-      s += `<text class="yl" x="${mg.l + iw + 6}" y="${yy + 4}">${esc(t("life"))} ${cfg.overlay}</text>`;
-    }
-    // line
-    const line = cfg.points.concat(cfg.tail ? [cfg.tail] : []);
-    if (line.length) {
-      const d = line.map((p, i) => `${i ? "L" : "M"}${X(+p.t).toFixed(1)},${Y(p.v).toFixed(1)}`).join("");
-      s += `<g clip-path="url(#${id})"><path class="ln" d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.25" stroke-linejoin="round"/>`;
-      for (const p of cfg.points) {
-        const x = X(+p.t), y = Y(p.v);
-        s += p.v === 0
-          ? `<circle cx="${x}" cy="${y}" r="4.5" fill="var(--surface)" stroke="var(--zero)" stroke-width="2.25"/>`
-          : `<circle cx="${x}" cy="${y}" r="${cfg.points.length > 60 ? 2 : 3.5}" fill="var(--accent)"/>`;
-      }
-      s += `</g>`;
-    }
-    s += `<circle class="focus" r="7" fill="none" stroke="var(--ink)" stroke-width="2" visibility="hidden"/>`;
-    s += `</svg><div class="tip" hidden></div>`;
-    host.innerHTML = s;
+  /* ---------- swipeable timeline ---------- */
+  // A wide spacer gives native scrolling (momentum, swipe); only the slice around the viewport is drawn.
+  let tlSeq = 0;
+  function Timeline(host, kind) {
+    host.innerHTML = `<div class="tl"><svg class="tl-y" aria-hidden="true"></svg><div class="tl-scroll" tabindex="0"><div class="tl-content"><svg class="tl-svg"></svg></div></div></div>`;
+    const yax = host.querySelector(".tl-y"), sc = host.querySelector(".tl-scroll"), content = host.querySelector(".tl-content"), svg = host.querySelector(".tl-svg");
+    const id = "tl" + (++tlSeq);
+    const PADL = 14, PADR = 14, TOP = 24, BOT = kind === "year" ? 40 : 26;
+    const me = { cfg: null, ppm: 1, total: 0, vw: 0, H: 0, r0: 0, r1: 0, sc };
+    const X = ms => PADL + (ms - me.cfg.t0) * me.ppm;
+    const Tm = x => me.cfg.t0 + (x - PADL) / me.ppm;
+    const Y = v => TOP + (9.5 - v) / 10 * (me.H - TOP - BOT);
+    const hatch = `<pattern id="${id}h" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="var(--b0)"/><line x1="0" y1="0" x2="0" y2="7" stroke="var(--zero)" stroke-opacity=".22" stroke-width="2"/></pattern>`;
+    const bandFill = v => v === 0 ? `url(#${id}h)` : band(v);
 
-    const svg = host.querySelector("svg"), tip = host.querySelector(".tip"), focus = svg.querySelector(".focus");
-    const visible = cfg.points.filter(p => X(+p.t) >= mg.l - 1 && X(+p.t) <= mg.l + iw + 1);
-    function nearest(ev) {
-      const r = svg.getBoundingClientRect();
-      const px = (ev.clientX - r.left) * (W / r.width);
-      let best = null, bd = Infinity;
-      for (const p of visible) { const dd = Math.abs(X(+p.t) - px); if (dd < bd) { bd = dd; best = p; } }
-      return { best, scale: r.width / W };
-    }
-    function show(ev) {
-      const { best, scale } = nearest(ev);
-      if (!best) return;
-      const cx = X(+best.t), cy = Y(best.v);
-      focus.setAttribute("cx", cx); focus.setAttribute("cy", cy); focus.setAttribute("visibility", "visible");
-      tip.innerHTML = `<div class="td">${esc(best.range)}</div><div class="tv">${best.v}</div><div>${esc(t("meanings")[best.v])}</div>`;
-      tip.hidden = false;
-      const hw = host.clientWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
-      let left = cx * scale + 14; if (left + tw > hw) left = cx * scale - tw - 14; if (left < 0) left = 0;
-      let top = cy * scale - th / 2; top = Math.max(0, Math.min(top, H * scale - th));
-      tip.style.left = left + "px"; tip.style.top = top + "px";
-    }
-    function hide() { tip.hidden = true; focus.setAttribute("visibility", "hidden"); }
-    // hover tooltip is for mice only; a tap (or click) opens the details sheet
-    svg.addEventListener("pointermove", ev => { if (ev.pointerType === "mouse") show(ev); });
-    svg.addEventListener("pointerleave", hide);
-    svg.addEventListener("click", ev => {
-      const { best } = nearest(ev);
-      hide();
-      if (best && cfg.onPick) cfg.onPick(best, visible);
+    me.centerT = () => Tm(sc.scrollLeft + me.vw / 2);
+    me.visible = () => [Math.max(me.cfg.t0, Tm(sc.scrollLeft)), Math.min(me.cfg.t1, Tm(sc.scrollLeft + me.vw))];
+    me.isVisible = ms => { const x = X(ms); return x >= sc.scrollLeft + 10 && x <= sc.scrollLeft + me.vw - 10; };
+
+    me.layout = (keepCenter) => {
+      const c = keepCenter && me.total ? me.centerT() : null;
+      me.vw = sc.clientWidth || 300;
+      me.H = me.vw < 480 ? 240 : 310;
+      me.ppm = me.vw / me.cfg.span();
+      me.total = Math.ceil(PADL + (me.cfg.t1 - me.cfg.t0) * me.ppm + PADR);
+      content.style.width = me.total + "px";
+      content.style.height = me.H + "px";
+      const ih = me.H - TOP - BOT;
+      let a = `<defs>${hatch}</defs>`;
+      for (let v = 0; v <= 9; v++) {
+        a += `<rect x="0" y="${Y(v + .5)}" width="30" height="${ih / 10}" fill="${bandFill(v)}"/>`;
+        a += `<text class="yl" x="15" y="${Y(v) + 4}" text-anchor="middle">${v}</text>`;
+      }
+      yax.setAttribute("viewBox", `0 0 30 ${me.H}`); yax.setAttribute("width", 30); yax.setAttribute("height", me.H);
+      yax.innerHTML = a;
+      if (c != null) me.scrollTo(c, "center", false);
+      me.draw(true);
+    };
+
+    me.scrollTo = (ms, align, smooth) => {
+      let x = X(ms) - (align === "center" ? me.vw / 2 : align === "start" ? me.vw * 0.06 : 0);
+      x = Math.max(0, Math.min(x, me.total - me.vw));
+      if (smooth && !reduced()) sc.scrollTo({ left: x, behavior: "smooth" });
+      else { sc.scrollLeft = x; me.draw(true); }
+    };
+
+    me.draw = (force) => {
+      if (!me.cfg) return;
+      const sl = sc.scrollLeft, vw = me.vw;
+      const need = force || (sl < me.r0 + vw * 0.25 && me.r0 > 0) || (sl + vw > me.r1 - vw * 0.25 && me.r1 < me.total);
+      if (!need) return;
+      const r0 = me.r0 = Math.max(0, Math.floor(sl - vw)), r1 = me.r1 = Math.min(me.total, Math.ceil(sl + 2 * vw));
+      const H = me.H, ih = H - TOP - BOT, cfg = me.cfg;
+      const tA = Tm(r0), tB = Tm(r1);
+      const P = cfg.pts;
+      const i0 = Math.max(0, bsearch(P, tA, "t")), i1 = Math.min(P.length - 1, bsearch(P, tB, "t") + 1);
+      let s = `<defs>${hatch}</defs>`;
+      for (let v = 0; v <= 9; v++) s += `<rect x="${r0}" y="${Y(v + .5)}" width="${r1 - r0}" height="${ih / 10}" fill="${bandFill(v)}"/>`;
+      // zero-in-zero windows
+      for (const z of M.zz) {
+        if (z.end < tA || z.start > tB) continue;
+        const a = X(z.start), b = X(z.end);
+        s += `<rect x="${a}" y="${TOP}" width="${Math.max(1, b - a)}" height="${ih}" fill="var(--zero)" fill-opacity=".15"/>`;
+      }
+      // ticks
+      for (const tk of cfg.ticks(i0, i1, me.ppm)) {
+        const x = X(tk.t);
+        s += `<line x1="${x}" x2="${x}" y1="${TOP}" y2="${TOP + ih}" stroke="var(--ink)" stroke-opacity="${tk.major ? .28 : .08}"${tk.major ? ` stroke-dasharray="2 3"` : ""}/>`;
+        if (tk.label) s += `<text x="${x}" y="${TOP + ih + 16}" text-anchor="middle">${esc(tk.label)}</text>`;
+        if (tk.label2) s += `<text class="yr" x="${x}" y="${TOP + ih + 32}" text-anchor="middle">${esc(tk.label2)}</text>`;
+      }
+      // today
+      const cur = S.sel[kind];
+      const tx = X(NOW);
+      if (tx >= r0 && tx <= r1) {
+        s += `<line x1="${tx}" x2="${tx}" y1="${TOP - 4}" y2="${TOP + ih}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+        if (cur == null || Math.abs(X(cur) - tx) > 44) s += `<text class="tdy" x="${tx}" y="${TOP - 8}" text-anchor="middle">${esc(t("today"))}</text>`;
+      }
+      // Life line under the Year chart
+      if (cfg.overlay) {
+        const O = cfg.overlay, j0 = Math.max(0, bsearch(O, tA, "t")), j1 = Math.min(O.length - 1, bsearch(O, tB, "t") + 1);
+        let d = "";
+        for (let j = j0; j <= j1; j++) d += `${j > j0 ? "L" : "M"}${X(O[j].t).toFixed(1)},${Y(O[j].v).toFixed(1)}`;
+        s += `<path d="${d}" fill="none" stroke="var(--ink)" stroke-opacity=".55" stroke-width="1.75" stroke-dasharray="6 4"/>`;
+      }
+      // selected run: a bar across its band, so the stretch of time is visible
+      let run = null;
+      if (cur != null) {
+        run = runs(kind)[runIndexAt(runs(kind), cur)];
+        const a = Math.max(X(run.start), r0 - 4), b = Math.min(X(run.end), r1 + 4);
+        s += `<rect x="${a}" y="${Y(run.b + .5) + 1}" width="${Math.max(2, b - a)}" height="${ih / 10 - 2}" rx="3" fill="var(--accent)" fill-opacity=".22" stroke="var(--accent)" stroke-width="1.5"/>`;
+      }
+      // main line + peaks
+      let d = "";
+      for (let i = i0; i <= i1; i++) d += `${i > i0 ? "L" : "M"}${X(P[i].t).toFixed(1)},${Y(P[i].v).toFixed(1)}`;
+      s += `<path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      for (let i = i0; i <= i1; i++) {
+        const x = X(P[i].t), y = Y(P[i].v);
+        s += P[i].v === 0
+          ? `<circle cx="${x}" cy="${y}" r="4.5" fill="var(--surface)" stroke="var(--zero)" stroke-width="2.25"/>`
+          : `<circle cx="${x}" cy="${y}" r="3.75" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"/>`;
+      }
+      // cursor
+      if (cur != null) {
+        const x = X(cur), y = Y(valueAt(P, cur));
+        s += `<line x1="${x}" x2="${x}" y1="${TOP}" y2="${TOP + ih}" stroke="var(--ink)" stroke-width="1.5"/>`;
+        s += `<rect x="${x - 13}" y="2" width="26" height="18" rx="9" fill="var(--ink)"/><text class="pill" x="${x}" y="15" text-anchor="middle" style="fill:var(--bg)">${run.b}</text>`;
+        s += `<circle cx="${x}" cy="${y}" r="6" fill="var(--surface)" stroke="var(--ink)" stroke-width="2.5"/>`;
+      }
+      svg.style.left = r0 + "px";
+      svg.setAttribute("viewBox", `${r0} 0 ${r1 - r0} ${H}`);
+      svg.setAttribute("width", r1 - r0);
+      svg.setAttribute("height", H);
+      svg.innerHTML = s;
+    };
+
+    let raf = 0;
+    sc.addEventListener("scroll", () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; me.draw(false); me.cfg && me.cfg.onScroll && me.cfg.onScroll(); });
+    }, { passive: true });
+
+    // mouse: drag to pan (touch already scrolls natively)
+    let drag = null, moved = false;
+    sc.addEventListener("pointerdown", ev => {
+      if (ev.pointerType !== "mouse" || ev.button !== 0) return;
+      drag = { x: ev.clientX, sl: sc.scrollLeft }; moved = false;
     });
-    svg.style.cursor = "pointer";
+    window.addEventListener("pointermove", ev => {
+      if (!drag) return;
+      const dx = ev.clientX - drag.x;
+      if (Math.abs(dx) > 4) { moved = true; sc.classList.add("dragging"); }
+      if (moved) sc.scrollLeft = drag.sl - dx;
+    });
+    window.addEventListener("pointerup", () => {
+      if (!drag) return;
+      drag = null; sc.classList.remove("dragging");
+      setTimeout(() => { moved = false; }, 0);
+    });
+    content.addEventListener("click", ev => {
+      if (moved || !me.cfg) return;
+      const ms = Tm(ev.clientX - content.getBoundingClientRect().left);
+      me.cfg.onTap(Math.max(me.cfg.t0, Math.min(me.cfg.t1 - 1, ms)));
+    });
+    sc.addEventListener("keydown", ev => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); me.cfg.onTap(me.centerT()); }
+    });
+    return me;
+  }
+
+  const TL = { life: Timeline($("lifeChart"), "life"), year: Timeline($("yearChart"), "year") };
+
+  function lifeTicks(i0, i1, ppm) {
+    const step = [1, 2, 5, 10, 20].find(s => s * ppm * YEAR >= 40) || 20;
+    const out = [];
+    for (let i = i0; i <= i1; i++) {
+      const p = M.lifePts[i], on = (p.Y - M.y) % step === 0;
+      out.push({ t: p.t, label: on ? String(p.Y) : "", major: false });
+    }
+    return out;
+  }
+  function yearTicks(i0, i1, ppm) {
+    const px = ppm * MONTH;
+    const step = [1, 2, 3, 6].find(s => s * px >= 34) || 6, withDay = px >= 52;
+    const out = [];
+    for (let i = i0; i <= i1; i++) {
+      const p = M.yearPts[i];
+      const lbl = p.k % step === 0 ? (withDay ? `${new Date(p.t).getDate()} ${monShort(p.t)}` : monShort(p.t)) : "";
+      out.push({ t: p.t, label: lbl, label2: p.k === 0 ? String(p.Y) : "", major: p.k === 0 });
+    }
+    return out;
+  }
+
+  /* ---------- selection + readouts ---------- */
+  function select(kind, ms, scroll) {
+    S.sel[kind] = ms;
+    TL[kind].draw(true);
+    renderReadout(kind);
+    if (scroll && !TL[kind].isVisible(ms)) TL[kind].scrollTo(ms, "center", true);
+  }
+
+  const badge = (cls, txt) => `<span class="badge${cls}">${esc(txt)}</span>`;
+  const chip = v => `<span class="chip${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>`;
+  const bigBox = (v, cls) => `<span class="big${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>`;
+  const isNowRun = r => NOW >= r.start && NOW < r.end;
+
+  function renderReadout(kind) {
+    const R = runs(kind), r = R[runIndexAt(R, S.sel[kind])];
+    const pk = peakOf(kind, r);
+    const bs = (isNowRun(r) ? badge("", t("nowBadge")) : "") + (inZZ(S.sel[kind]) ? badge(" z", t("zzBadge")) : "");
+    $(kind + "Read").innerHTML = `${bigBox(r.b)}
+      <div class="rd"><div class="when">${spanText(r.start, r.end)}</div>
+        <div class="mean">${esc(t("meanings")[r.b])}</div>
+        ${pk ? `<div class="peak">${esc(t("peak"))} · ${fmt(pk.t)}</div>` : ""}
+        ${bs ? `<div class="badges">${bs}</div>` : ""}</div>
+      <button class="btn ghost small" type="button" data-details="${kind}">${esc(t("details"))} →</button>`;
   }
 
   /* ---------- renderers ---------- */
-  const chips = D => `<span class="chips">${D.map(v => `<span class="chip${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>`).join("")}</span>`;
+  const chips = D => `<span class="chips">${D.map(chip).join("")}</span>`;
 
   function renderStatic() {
-    document.documentElement.lang = S.lang === "uk" ? "uk" : S.lang;
+    document.documentElement.lang = S.lang;
     document.querySelectorAll("[data-i]").forEach(el => { const v = t(el.dataset.i); if (typeof v === "string") el.textContent = v; });
     document.querySelectorAll("[data-lang]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === S.lang)));
     document.title = t("title");
@@ -728,64 +901,74 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     }).join("");
     mSel.value = keep;
     $("legend").innerHTML = t("meanings").map((txt, v) => ({ txt, v })).reverse()
-      .map(({ txt, v }) => `<li><span class="chip${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span><span>${esc(txt)}</span></li>`).join("");
+      .map(({ txt, v }) => `<li>${chip(v)}<span>${esc(txt)}</span></li>`).join("");
     $("todayLbl").textContent = fmt(today);
+    document.querySelectorAll("#lifeSpan [data-span]").forEach(b => { b.textContent = t("spanYears")(+b.dataset.span); b.setAttribute("aria-pressed", String(+b.dataset.span === S.lifeSpan)); });
+    document.querySelectorAll("#yearSpan [data-span]").forEach(b => { b.textContent = t("spanMonths")(+b.dataset.span); b.setAttribute("aria-pressed", String(+b.dataset.span === S.yearSpan)); });
   }
 
   function renderNow() {
     const grid = $("nowGrid"), zz = $("zzNow");
-    const birth = M.bday(M.y);
-    if (today < birth) {
+    if (NOW < M.t0) {
       grid.innerHTML = `<p class="muted">${esc(t("notBorn"))}</p>`;
       zz.hidden = true;
       return;
     }
     zz.hidden = false;
-    const Y = M.periodOf(today);
-    const lv = M.lifeValue(Y);
-    const yp = M.yearPoints(Y).pts;
-    const mp = yp.filter(p => p.t <= today).pop();
-    const card = (lbl, v, from, to) => `<div class="stat"><span class="big" style="background:${band(v)}${v === 0 ? ";box-shadow:inset 0 0 0 2px var(--zero)" : ""}">${v}</span>
-      <span class="lbl">${esc(lbl)}</span><span class="mean">${esc(t("meanings")[v])}</span>
-      <span class="when">${fmt(from)} ${esc(t("until"))} ${fmt(dayBefore(to))}</span></div>`;
-    grid.innerHTML = card(t("lifeNow"), lv, M.bday(Y), M.bday(Y + 1)) + card(t("monthNow"), mp.v, mp.t, mp.end);
-    const on = lv === 0 && mp.v === 0;
+    const card = (lbl, r) => `<div class="stat">${bigBox(r.b)}
+      <span class="lbl">${esc(lbl)}</span><span class="mean">${esc(t("meanings")[r.b])}</span>
+      <span class="when">${spanText(r.start, r.end)}</span></div>`;
+    grid.innerHTML = card(t("lifeNow"), M.lifeRuns[runIndexAt(M.lifeRuns, NOW)]) + card(t("monthNow"), M.yearRuns[runIndexAt(M.yearRuns, NOW)]);
+    const on = inZZ(NOW);
     zz.classList.toggle("on", on);
     let msg = on ? t("zzOn") : t("zzOff");
     if (!on) {
-      const next = zeroPeriods(M, Y, 60).find(z => z.start > today);
-      if (next) msg += " " + t("zzNext").replace("{date}", fmt(next.start));
+      const next = M.zz.find(z => z.start > NOW);
+      if (next) msg += " " + t("zzNext").replace("{date}", fmt(roundDay(next.start)));
     }
     zz.lastElementChild.textContent = msg;
   }
 
-  function renderLife() {
-    $("inFrom").value = S.from; $("inTo").value = S.to;
-    document.querySelectorAll("[data-preset]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.preset === S.preset)));
+  function setupTimelines(recenter) {
     $("lifeFormula").innerHTML = `<span>${M.d}</span><span class="op">×</span><span>${M.m}</span><span class="op">×</span><span>${M.y}</span><span class="op">=</span><span>${M.lifeProduct}</span><span class="op">→</span>${chips(M.lifeDigits)}`;
     $("lifeHint").textContent = t("lifeHint").replace("{n}", t("years")(M.L));
-    const pts = [];
-    for (let Yr = Math.max(M.y, S.from - 1); Yr <= S.to + 1; Yr++) {
-      pts.push({ t: M.bday(Yr), v: M.lifeValue(Yr), Y: Yr, range: `${fmt(M.bday(Yr))} – ${fmt(dayBefore(M.bday(Yr + 1)))}` });
+    $("yearHint").textContent = t("yearHint");
+    TL.life.cfg = {
+      t0: M.t0, t1: M.t1, pts: M.lifePts, ticks: lifeTicks, span: () => S.lifeSpan * YEAR,
+      onTap: ms => select("life", ms), onScroll: onLifeScroll
+    };
+    TL.year.cfg = {
+      t0: M.t0, t1: M.t1, pts: M.yearPts, overlay: M.lifePts, ticks: yearTicks, span: () => S.yearSpan * MONTH,
+      onTap: ms => select("year", ms), onScroll: onYearScroll
+    };
+    TL.life.layout(!recenter); TL.year.layout(!recenter);
+    if (recenter) {
+      TL.life.scrollTo(S.sel.life, "center", false);
+      TL.year.scrollTo(S.sel.year, "center", false);
     }
-    const span = S.to - S.from;
-    const ticks = [];
-    const step = [1, 2, 5, 10, 20].find(st => st * ($("lifeChart").clientWidth || 700) / Math.max(1, span) >= 46) || 20;
-    for (let Yr = S.from; Yr <= S.to; Yr++) if ((Yr - S.from) % step === 0 || Yr === S.to) ticks.push({ t: M.bday(Yr), label: String(Yr) });
-    drawChart($("lifeChart"), {
-      label: t("lifeTitle"), domain: [M.bday(S.from), M.bday(S.to)], points: pts, ticks, minTickGap: 34,
-      onPick: (p, vis) => { const items = vis.map(q => q.Y); openSheet("life", items, items.indexOf(p.Y)); }
-    });
-    // table: like the method's own — digits across, years down
-    const cur = today >= M.bday(M.y) ? M.periodOf(today) : null;
-    const start = M.y + Math.floor((S.from - M.y) / M.L) * M.L;
+    renderReadout("life"); renderReadout("year");
+    lastLifeRange = ""; onLifeScroll();
+    S.period = -1; onYearScroll();
+  }
+
+  /* life chart: visible years + table that follows the scroll */
+  let lastLifeRange = "";
+  function onLifeScroll() {
+    const [a, b] = TL.life.visible();
+    const ya = new Date(a).getFullYear(), yb = new Date(b).getFullYear();
+    $("lifeVis").innerHTML = `${ya} <span class="arr">–</span> ${yb}`;
+    const key = ya + ":" + yb;
+    if (key !== lastLifeRange) { lastLifeRange = key; renderLifeTable(Math.max(M.y, ya), Math.min(M.END, yb)); }
+  }
+  function renderLifeTable(from, to) {
+    const cur = NOW >= M.t0 ? M.periodOf(NOW) : null;
+    const start = M.y + Math.floor((from - M.y) / M.L) * M.L;
+    const rows = Math.floor((to - start) / M.L) + 1;
     let h = `<tr><th class="rowh">${esc(t("colValue"))}</th>${M.lifeDigits.map(v => `<th style="background:${band(v)}">${v}</th>`).join("")}</tr>`;
-    let first = true;
-    for (let r = start; r <= S.to; r += M.L) {
-      h += `<tr>${first ? `<td class="rowh" rowspan="${Math.floor((S.to - start) / M.L) + 1}">${esc(t("colYear"))}</td>` : ""}`;
-      first = false;
+    for (let r = 0; r < rows; r++) {
+      h += `<tr>${r === 0 ? `<td class="rowh" rowspan="${rows}">${esc(t("colYear"))}</td>` : ""}`;
       for (let k = 0; k < M.L; k++) {
-        const Yr = r + k, out = Yr < S.from || Yr > S.to;
+        const Yr = start + r * M.L + k, out = Yr < from || Yr > to;
         h += `<td class="${out ? "out" : ""}${Yr === cur ? " cur" : ""}">${out ? Yr : `<button type="button" data-year="${Yr}">${Yr}</button>`}</td>`;
       }
       h += `</tr>`;
@@ -793,27 +976,24 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     $("lifeTable").innerHTML = h;
   }
 
-  function renderYear() {
+  /* year chart: the period at the centre drives the title, formula, picker and table */
+  function onYearScroll() {
+    const [a, b] = TL.year.visible();
+    $("yearVis").innerHTML = `${fmt(roundDay(a))} <span class="arr">–</span> ${fmt(roundDay(b))}`;
+    const Yr = Math.max(M.y, Math.min(M.END - 1, M.periodOf(TL.year.centerT())));
+    if (Yr !== S.period) { S.period = Yr; renderYearHead(); }
+  }
+  function renderYearHead() {
     const Yr = S.period;
     const sel = $("inPeriod");
-    sel.innerHTML = Array.from({ length: 101 }, (_, i) => M.y + i).map(v => `<option value="${v}">${v} – ${v + 1}</option>`).join("");
+    if (sel.options.length !== SPAN_YEARS || +sel.options[0].value !== M.y) {
+      sel.innerHTML = Array.from({ length: SPAN_YEARS }, (_, i) => M.y + i).map(v => `<option value="${v}">${v} – ${v + 1}</option>`).join("");
+    }
     sel.value = String(Yr);
-    $("prevYear").disabled = Yr <= M.y; $("nextYear").disabled = Yr >= M.y + 100;
+    $("prevYear").disabled = Yr <= M.y; $("nextYear").disabled = Yr >= M.END - 1;
     const { product, digits: D, pts } = M.yearPoints(Yr);
     $("yearTitle").textContent = t("yearTitle").replace("{date}", fmt(M.bday(Yr)));
     $("yearFormula").innerHTML = `<span>${M.d}</span><span class="op">×</span><span>${M.m}</span><span class="op">×</span><span>${Yr}</span><span class="op">=</span><span>${product}</span><span class="op">→</span>${chips(D)}`;
-    $("yearHint").textContent = t("yearHint");
-    const lv = M.lifeValue(Yr);
-    const mf = new Intl.DateTimeFormat(t("locale"), { month: "short" });
-    const points = pts.map(p => ({ ...p, range: `${fmt(p.t)} – ${fmt(dayBefore(p.end))}` }));
-    const windows = lv === 0 ? zeroPeriods(M, Yr, 1) : [];
-    drawChart($("yearChart"), {
-      label: $("yearTitle").textContent, domain: [M.bday(Yr), M.bday(Yr + 1)], points,
-      tail: { t: M.bday(Yr + 1), v: pts[11].v },
-      ticks: pts.map(p => ({ t: p.t, label: `${p.t.getDate()} ${mf.format(p.t).replace(".", "")}` })),
-      minTickGap: 52, overlay: lv, windows,
-      onPick: p => openSheet("year", pts.map(q => ({ Y: Yr, k: q.k })), p.k)
-    });
     const rows = Math.ceil(12 / D.length);
     let h = `<tr><th class="rowh">${esc(t("colValue"))}</th>${D.map(v => `<th style="background:${band(v)}">${v}</th>`).join("")}</tr>`;
     for (let r = 0; r < rows; r++) {
@@ -821,9 +1001,9 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       for (let c = 0; c < D.length; c++) {
         const p = pts[r * D.length + c];
         if (!p) { h += `<td></td>`; continue; }
-        const isCur = today >= p.t && today < p.end;
+        const isCur = +today === +p.t;
         const withYear = p.k === 0 || p.k === 11 || p.t.getMonth() === 0;
-        h += `<td class="${isCur ? "cur" : ""}">${fmt(p.t, withYear)}</td>`;
+        h += `<td class="${isCur ? "cur" : ""}"><button type="button" data-peak="${+p.t}">${fmt(p.t, withYear)}</button></td>`;
       }
       h += `</tr>`;
     }
@@ -831,23 +1011,18 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
   }
 
   function renderZeroList() {
-    const startY = Math.max(M.y, today >= M.bday(M.y) ? M.periodOf(today) : M.y);
-    const list = zeroPeriods(M, startY, 60).filter(z => z.end > today).slice(0, 8);
+    const list = M.zz.filter(z => z.end > NOW && z.start < NOW + 60 * YEAR).slice(0, 8);
     $("zzList").innerHTML = list.length ? list.map(z => {
-      const now = today >= z.start && today < z.end;
-      return `<li><span>${fmt(z.start)} – ${fmt(dayBefore(z.end))}</span>${now ? `<span class="ago">${esc(t("inNow"))}</span>` : ""}<button class="btn ghost small" type="button" data-year="${z.Y}">${esc(t("show"))}</button></li>`;
+      const now = NOW >= z.start && NOW < z.end;
+      return `<li><span>${spanText(z.start, z.end)}</span>${now ? `<span class="ago">${esc(t("inNow"))}</span>` : ""}<button class="btn ghost small" type="button" data-zz="${(z.start + z.end) / 2}">${esc(t("show"))}</button></li>`;
     }).join("") : `<li class="muted">${esc(t("zzNone"))}</li>`;
   }
 
-  /* ---------- point details sheet ---------- */
-  const sheet = { kind: null, items: [], idx: 0 };
-  const isNow = (a, b) => today >= a && today < b;
-  const badge = (cls, txt) => `<span class="badge${cls}">${esc(txt)}</span>`;
-  const chip = v => `<span class="chip${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>`;
-  const range = (a, b) => `${fmt(a)} – ${fmt(dayBefore(b))}`;
+  /* ---------- period details sheet ---------- */
+  const sheet = { kind: null, idx: 0 };
 
-  function openSheet(kind, items, idx) {
-    sheet.kind = kind; sheet.items = items; sheet.idx = Math.max(0, idx);
+  function openSheet(kind) {
+    sheet.kind = kind; sheet.idx = runIndexAt(runs(kind), S.sel[kind]);
     renderSheet();
     const dlg = $("sheet");
     if (!dlg.open) { try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); } }
@@ -858,58 +1033,51 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     sheet.kind = null;
   }
   function stepSheet(dir) {
-    const i = sheet.idx + dir;
-    if (i < 0 || i >= sheet.items.length) return;
-    sheet.idx = i; renderSheet();
+    const R = runs(sheet.kind), i = sheet.idx + dir;
+    if (i < 0 || i >= R.length) return;
+    sheet.idx = i;
+    select(sheet.kind, (R[i].start + R[i].end) / 2, true);
+    renderSheet();
   }
-
   function renderSheet() {
     if (!sheet.kind) return;
-    const it = sheet.items[sheet.idx];
-    const means = t("meanings");
-    let head, body;
-    if (sheet.kind === "life") {
-      const Yr = it, a = M.bday(Yr), b = M.bday(Yr + 1), v = M.lifeValue(Yr);
-      const yp = M.yearPoints(Yr);
-      head = range(a, b);
-      body = `<div class="sv"><span class="big${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>
-          <div><div class="mean">${esc(means[v])}</div>${isNow(a, b) ? `<div class="badges">${badge("", t("nowBadge"))}</div>` : ""}</div></div>
-        <div class="sub"><div class="eyebrow">${esc(t("byMonth"))}</div>
-          <div class="formula-s">${M.d} × ${M.m} × ${Yr} = ${yp.product}</div>
-          <ul class="mlist">${yp.pts.map(p => {
-            const zz = v === 0 && p.v === 0, cur = isNow(p.t, p.end);
-            return `<li class="${zz ? "zz" : ""}${cur ? " cur" : ""}">${chip(p.v)}
-              <span class="top-row"><span class="when">${range(p.t, p.end)}</span>${cur ? badge("", t("nowBadge")) : ""}${zz ? badge(" z", t("zzBadge")) : ""}</span>
-              <span class="m">${esc(means[p.v])}</span></li>`;
-          }).join("")}</ul></div>`;
-    } else {
-      const Yr = it.Y, p = M.yearPoints(Yr).pts[it.k], lv = M.lifeValue(Yr);
-      const zz = lv === 0 && p.v === 0, cur = isNow(p.t, p.end);
-      head = range(p.t, p.end);
-      body = `<div class="sv"><span class="big${p.v === 0 ? " z" : ""}" style="background:${band(p.v)}">${p.v}</span>
-          <div><div class="mean">${esc(means[p.v])}</div>${cur || zz ? `<div class="badges">${cur ? badge("", t("nowBadge")) : ""}${zz ? badge(" z", t("zzBadge")) : ""}</div>` : ""}</div></div>
-        <div class="sub"><div class="eyebrow">${esc(t("lifeLevel"))}</div>
-          <div class="lifelvl">${chip(lv)}<span class="when">${range(M.bday(Yr), M.bday(Yr + 1))}</span><span class="m">${esc(means[lv])}</span></div></div>`;
+    const kind = sheet.kind, R = runs(kind), O = kind === "life" ? M.yearRuns : M.lifeRuns;
+    const r = R[sheet.idx], means = t("meanings");
+    const pk = peakOf(kind, r);
+    const hasZZ = M.zz.some(z => z.end > r.start && z.start < r.end);
+    const bs = (isNowRun(r) ? badge("", t("nowBadge")) : "") + (hasZZ ? badge(" z", t("zzBadge")) : "");
+    let list = "";
+    for (let j = runIndexAt(O, r.start); j < O.length && O[j].start < r.end; j++) {
+      const o = O[j], s = Math.max(o.start, r.start), e = Math.min(o.end, r.end);
+      if (e - s < DAY / 2) continue;
+      const zz = o.b === 0 && r.b === 0, cur = NOW >= s && NOW < e;
+      list += `<li class="${zz ? "zz" : ""}${cur ? " cur" : ""}">${chip(o.b)}
+        <span class="top-row"><span class="when">${spanText(s, e)}</span>${cur ? badge("", t("nowBadge")) : ""}${zz ? badge(" z", t("zzBadge")) : ""}</span>
+        <span class="m">${esc(means[o.b])}</span></li>`;
     }
-    $("sheetKind").textContent = sheet.kind === "life" ? t("sheetLife") : t("sheetYear");
-    $("sheetTitle").textContent = head;
-    $("sheetBody").innerHTML = body;
+    $("sheetKind").textContent = kind === "life" ? t("sheetLife") : t("sheetYear");
+    $("sheetTitle").textContent = spanText(r.start, r.end);
+    $("sheetBody").innerHTML = `<div class="sv">${bigBox(r.b)}
+        <div><div class="mean">${esc(means[r.b])}</div>
+        ${pk ? `<div class="peak">${esc(t("peak"))} · ${fmt(pk.t)}</div>` : ""}
+        ${bs ? `<div class="badges">${bs}</div>` : ""}</div></div>
+      <div class="sub"><div class="eyebrow">${esc(t(kind === "life" ? "inYear" : "inLife"))}</div><ul class="mlist">${list}</ul></div>`;
     $("sheetBody").scrollTop = 0;
     $("sheetClose").setAttribute("aria-label", t("close"));
     $("sheetPrev").setAttribute("aria-label", t("prev"));
     $("sheetNext").setAttribute("aria-label", t("next"));
     $("sheetPrev").disabled = sheet.idx <= 0;
-    $("sheetNext").disabled = sheet.idx >= sheet.items.length - 1;
-    $("sheetOpen").hidden = sheet.kind !== "life";
-    $("sheetSpacer").hidden = sheet.kind === "life";
+    $("sheetNext").disabled = sheet.idx >= R.length - 1;
+    $("sheetOpen").hidden = kind !== "life";
+    $("sheetSpacer").hidden = kind === "life";
     $("sheetOpen").textContent = t("openYear");
   }
 
-  function renderAll() {
+  function renderAll(recenter) {
     renderStatic();
     $("inDay").value = S.d; $("inMonth").value = String(S.m); $("inYear").value = S.y;
     $("sampleNote").innerHTML = S.isSample ? t("sample") : "";
-    renderNow(); renderLife(); renderYear(); renderZeroList(); renderSheet();
+    renderNow(); setupTimelines(recenter); renderZeroList(); renderSheet();
   }
 
   /* ---------- input ---------- */
@@ -917,8 +1085,8 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     S.d = d; S.m = m; S.y = y; S.isSample = !!isSample;
     closeSheet();
     M = model(d, m, y);
-    applyPreset("near");
-    S.period = today >= M.bday(y) ? M.periodOf(today) : y;
+    const start = NOW >= M.t0 && NOW < M.t1 ? NOW : M.t0 + DAY;
+    S.sel = { life: start, year: start };
     if (!isSample) {
       store.set("date", `${d}.${m}.${y}`);
       try { history.replaceState(null, "", "#" + `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`); } catch (e) {}
@@ -931,6 +1099,12 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     if (m < 1 || m > 12 || y < 1900 || y > 2100 || d < 1 || d > dim(y, m)) return null;
     return { d, m, y };
   }
+  const goPanel = id => $(id).scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" });
+  function showOnYear(ms, align) {
+    TL.year.scrollTo(ms, align, true);
+    select("year", ms);
+    goPanel("yearPanel");
+  }
 
   $("birthForm").addEventListener("submit", ev => {
     ev.preventDefault();
@@ -940,44 +1114,55 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     if (!(d >= 1 && d <= dim(y, m))) { err.textContent = t("errDate"); return; }
     err.textContent = "";
     setDate(d, m, y, false);
-    renderAll();
+    renderAll(true);
   });
   document.querySelectorAll("[data-lang]").forEach(b => b.addEventListener("click", () => {
-    S.lang = b.dataset.lang; store.set("lang", S.lang); $("err").textContent = ""; renderAll();
+    S.lang = b.dataset.lang; store.set("lang", S.lang); $("err").textContent = ""; renderAll(false);
   }));
-  $("lifePresets").addEventListener("click", ev => {
-    const b = ev.target.closest("[data-preset]"); if (!b) return;
-    applyPreset(b.dataset.preset); renderLife();
+  $("lifeSpan").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-span]"); if (!b) return;
+    S.lifeSpan = +b.dataset.span; renderStatic(); TL.life.layout(true); onLifeScroll();
   });
-  function rangeChange() {
-    let f = parseInt($("inFrom").value, 10), to = parseInt($("inTo").value, 10);
-    if (!Number.isFinite(f)) f = S.from; if (!Number.isFinite(to)) to = S.to;
-    f = Math.max(M.y, Math.min(f, M.y + 150));
-    to = Math.max(f + 2, Math.min(to, f + 150));
-    S.from = f; S.to = to; S.preset = ""; renderLife();
-  }
-  $("inFrom").addEventListener("change", rangeChange);
-  $("inTo").addEventListener("change", rangeChange);
-  const openYear = Yr => { S.period = Yr; renderYear(); $("yearPanel").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); };
-  $("lifeTable").addEventListener("click", ev => { const b = ev.target.closest("[data-year]"); if (b) openYear(+b.dataset.year); });
-  $("zzList").addEventListener("click", ev => { const b = ev.target.closest("[data-year]"); if (b) openYear(+b.dataset.year); });
-  $("inPeriod").addEventListener("change", ev => { S.period = +ev.target.value; renderYear(); });
-  $("prevYear").addEventListener("click", () => { S.period = Math.max(M.y, S.period - 1); renderYear(); });
-  $("nextYear").addEventListener("click", () => { S.period = Math.min(M.y + 100, S.period + 1); renderYear(); });
-  $("curYear").addEventListener("click", () => { S.period = today >= M.bday(M.y) ? M.periodOf(today) : M.y; renderYear(); });
+  $("yearSpan").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-span]"); if (!b) return;
+    S.yearSpan = +b.dataset.span; renderStatic(); TL.year.layout(true); onYearScroll();
+  });
+  $("lifeToday").addEventListener("click", () => { TL.life.scrollTo(NOW, "center", true); select("life", NOW); });
+  $("yearToday").addEventListener("click", () => { TL.year.scrollTo(NOW, "center", true); select("year", NOW); });
+  $("lifeTable").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-year]"); if (!b) return;
+    const ms = +M.bday(+b.dataset.year);
+    select("life", ms + 1, true);
+    TL.year.scrollTo(ms, "start", true); select("year", ms + 1); goPanel("yearPanel");
+  });
+  $("yearTable").addEventListener("click", ev => { const b = ev.target.closest("[data-peak]"); if (b) select("year", +b.dataset.peak + 1, true); });
+  $("zzList").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-zz]"); if (!b) return;
+    const ms = +b.dataset.zz;
+    select("life", ms, true); showOnYear(ms, "center");
+  });
+  const jumpYear = Yr => { Yr = Math.max(M.y, Math.min(M.END - 1, Yr)); TL.year.scrollTo(+M.bday(Yr), "start", true); };
+  $("inPeriod").addEventListener("change", ev => jumpYear(+ev.target.value));
+  $("prevYear").addEventListener("click", () => jumpYear(S.period - 1));
+  $("nextYear").addEventListener("click", () => jumpYear(S.period + 1));
+  document.addEventListener("click", ev => { const b = ev.target.closest("[data-details]"); if (b) openSheet(b.dataset.details); });
 
   const dlg = $("sheet");
   $("sheetClose").addEventListener("click", closeSheet);
   $("sheetPrev").addEventListener("click", () => stepSheet(-1));
   $("sheetNext").addEventListener("click", () => stepSheet(1));
-  $("sheetOpen").addEventListener("click", () => { const Yr = sheet.items[sheet.idx]; closeSheet(); openYear(Yr); });
+  $("sheetOpen").addEventListener("click", () => {
+    const r = M.lifeRuns[sheet.idx];
+    closeSheet();
+    showOnYear(Math.max(r.start, M.t0) + DAY, "start");
+  });
   dlg.addEventListener("click", ev => { if (ev.target === dlg) closeSheet(); });   // backdrop
   dlg.addEventListener("close", () => { sheet.kind = null; });
   dlg.addEventListener("keydown", ev => {
     if (ev.key === "ArrowLeft") { ev.preventDefault(); stepSheet(-1); }
     if (ev.key === "ArrowRight") { ev.preventDefault(); stepSheet(1); }
   });
-  // swipe the sheet left/right to step between points, down to close
+  // swipe the sheet left/right to step between periods, down to close
   let sx = 0, sy = 0;
   dlg.addEventListener("touchstart", ev => { sx = ev.touches[0].clientX; sy = ev.touches[0].clientY; }, { passive: true });
   dlg.addEventListener("touchend", ev => {
@@ -989,8 +1174,9 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
   let rz = 0, lastW = 0;
   new ResizeObserver(() => {
     const w = $("lifeChart").clientWidth;
-    if (Math.abs(w - lastW) < 2) return;
-    lastW = w; cancelAnimationFrame(rz); rz = requestAnimationFrame(() => { renderLife(); renderYear(); });
+    if (!M || Math.abs(w - lastW) < 2) return;
+    lastW = w; cancelAnimationFrame(rz);
+    rz = requestAnimationFrame(() => { TL.life.layout(true); TL.year.layout(true); onLifeScroll(); onYearScroll(); });
   }).observe($("lifeChart"));
 
   /* ---------- boot ---------- */
@@ -1003,14 +1189,17 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
   if (fromHash) setDate(fromHash.d, fromHash.m, fromHash.y, false);
   else if (saved) setDate(saved.d, saved.m, saved.y, false);
   else setDate(SAMPLE.d, SAMPLE.m, SAMPLE.y, true);
-  renderAll();
+  lastW = $("lifeChart").clientWidth;
+  if (lastW && lastW < 520) { S.lifeSpan = 10; S.yearSpan = 6; }
+  renderAll(true);
   window.addEventListener("hashchange", () => {
     const p = parseDate(decodeURIComponent(location.hash.slice(1)));
-    if (p) { setDate(p.d, p.m, p.y, false); renderAll(); }
+    if (p) { setDate(p.d, p.m, p.y, false); renderAll(true); }
   });
 
   // exposed for quick checks in the console
   window.energyModel = model;
+  window.energyRuns = { runsOf, intersect, valueAt };
 })();
 </script>
 </body>
