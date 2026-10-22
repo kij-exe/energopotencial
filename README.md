@@ -9,7 +9,8 @@ A calculator that builds the numerology "energy potential" charts from a date of
 The dots on each chart are peaks. Between two peaks the line passes through the numbers in between. For example, going from a 2 to a 4, the line spends some time at 3. The site works out exactly when the line is at each number.
 
 - Swipe the charts left and right (or drag them with the mouse). A phone shows about 10 years of the Life chart and 6 months of the Year chart at a time, and you can zoom out to 20 or 40 years and 12 or 24 months. The Year chart runs continuously from one year into the next.
-- Tap anywhere on a chart to place a cursor. The number under the cursor is highlighted as a bar across its row, and the panel below the chart shows the dates it covers, its meaning and its peak.
+- Tap anywhere on a chart to place a cursor. The number under the cursor is highlighted as a bar across its row.
+- Under each chart is a list of periods. The current one sits in a highlighted card with its dates, meaning and peak, the previous one shows above it, and the next ones fade out below. Scroll the list up or down to move from one number to the next, and the chart cursor follows.
 - Open **Details** to see what the other chart does during that period. Use the arrows (or swipe the panel sideways) to step through the periods.
 
 The interface is available in Russian, Ukrainian and English.

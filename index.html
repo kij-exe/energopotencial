@@ -162,17 +162,33 @@ form.birth { display: grid; gap: 14px; align-content: start; }
 .tl .tdy { fill: var(--accent); font-weight: 600; }
 .tl .pill { fill: var(--accent-ink); font-weight: 600; font-size: 12px; }
 
-.readout {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: center;
-  padding: 12px 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line);
+/* period list: rows snap into the lens; the focused row drives the chart cursor */
+.wheel { position: relative; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.wh-lens { position: absolute; left: 5px; right: 5px; border-radius: 10px; background: var(--surface); border: 1.5px solid var(--accent); box-shadow: 0 2px 10px rgba(20, 27, 45, .08); pointer-events: none; }
+.wh-scroll {
+  position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
+  scroll-snap-type: y mandatory; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
 }
-.readout .big { width: 52px; height: 58px; display: grid; place-items: center; border-radius: 8px; font: 700 30px/1 var(--f-display); }
-.readout .big.z { box-shadow: inset 0 0 0 2px var(--zero); }
-.readout .rd { display: grid; gap: 2px; min-width: 0; }
-.readout .when { font: 600 15px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
-.readout .mean { font-size: 13px; line-height: 1.35; }
-.readout .peak { font: 400 12px/1.3 var(--f-mono); color: var(--muted); }
-.readout .badges { margin-top: 2px; }
+.wh-scroll::-webkit-scrollbar { display: none; }
+.wh-content { position: relative; }
+.wh-row {
+  position: absolute; left: 5px; right: 5px; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px; align-items: center; padding: 0 12px; scroll-snap-align: start; cursor: pointer;
+  will-change: opacity;
+}
+.wh-row .big { width: 44px; height: 48px; display: grid; place-items: center; border-radius: 8px; font: 700 24px/1 var(--f-display); }
+.wh-row .big.z { box-shadow: inset 0 0 0 2px var(--zero); }
+.wh-txt { display: grid; gap: 1px; min-width: 0; }
+.wh-txt > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wh-row .when { font: 600 14px/1.35 var(--f-mono); font-variant-numeric: tabular-nums; }
+.wh-row .when .badge { margin-left: 6px; font-size: 9.5px; padding: 1px 6px; vertical-align: 1px; }
+.wh-row .m { font-size: 12.5px; line-height: 1.35; color: var(--muted); }
+.wh-row .pk { font: 400 11px/1.3 var(--f-mono); color: var(--muted); }
+.wh-row:not(.on) .pk, .wh-row:not(.on) .wh-more { visibility: hidden; }
+.wh-row.on .m { color: var(--ink); white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.wh-more { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
 
 .tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
 table.pts { border-collapse: collapse; width: 100%; font: 400 13px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
@@ -266,8 +282,9 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
   .seg button { height: 36px; }
   .btn.small { height: 38px; }
   .panel-head .ctls { width: 100%; }
-  .readout { grid-template-columns: auto minmax(0, 1fr); }
-  .readout .btn { grid-column: 1 / -1; }
+  .wh-row { gap: 10px; padding: 0 8px 0 10px; }
+  .wh-more { width: 36px; padding: 0; border-radius: 50%; }
+  .wh-more .lbl { display: none; }
 }
 </style>
 </head>
@@ -331,7 +348,7 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     <p class="hint" id="lifeHint"></p>
     <div class="chart-bar"><span class="vis" id="lifeVis"></span></div>
     <div id="lifeChart"></div>
-    <div class="readout" id="lifeRead" aria-live="polite"></div>
+    <div class="wheel" id="lifeRead"></div>
     <div class="tablebox"><table class="pts" id="lifeTable"></table></div>
   </section>
 
@@ -360,7 +377,7 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       <span class="keyline"><span><i></i><b data-i="year" style="font-weight:500">Год</b></span><span><i class="dash"></i><b data-i="life" style="font-weight:500">Жизнь</b></span></span>
     </div>
     <div id="yearChart"></div>
-    <div class="readout" id="yearRead" aria-live="polite"></div>
+    <div class="wheel" id="yearRead"></div>
     <div class="tablebox"><table class="pts" id="yearTable"></table></div>
   </section>
 
@@ -429,6 +446,7 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       periodLbl: "Год",
       yearHint: "Точки — пики каждый месяц, начиная с дня рождения; между ними линия проходит через промежуточные числа. Пунктир — график «Жизнь». Листайте и нажмите на график, чтобы увидеть даты.",
       todayBtn: "Сегодня", details: "Подробнее", peak: "пик",
+      listHint: "Список под графиком листается вверх и вниз — от числа к числу.",
       spanYears: n => n + " лет", spanMonths: n => n + " мес",
       colValue: "Энергопотенциал", colYear: "Год пика", colStart: "Дата пика",
       zzEyebrow: "Ноль в нуле", zzTitle: "Ближайшие периоды «ноль в нуле»",
@@ -479,6 +497,7 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       periodLbl: "Рік",
       yearHint: "Точки — піки щомісяця, починаючи з дня народження; між ними лінія проходить через проміжні числа. Пунктир — графік «Життя». Гортайте й натисніть на графік, щоб побачити дати.",
       todayBtn: "Сьогодні", details: "Детальніше", peak: "пік",
+      listHint: "Список під графіком гортається вгору і вниз — від числа до числа.",
       spanYears: n => n + " років", spanMonths: n => n + " міс",
       colValue: "Енергопотенціал", colYear: "Рік піку", colStart: "Дата піку",
       zzEyebrow: "Нуль у нулі", zzTitle: "Найближчі періоди «нуль у нулі»",
@@ -529,6 +548,7 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       periodLbl: "Year",
       yearHint: "Points are monthly peaks, starting on the birthday; between them the line passes through the numbers in between. The dashed line is the Life chart. Swipe and tap the chart to see dates.",
       todayBtn: "Today", details: "Details", peak: "peak",
+      listHint: "The list under the chart scrolls up and down, from one number to the next.",
       spanYears: n => n + " yrs", spanMonths: n => n + " mo",
       colValue: "Energy potential", colYear: "Peak year", colStart: "Peak date",
       zzEyebrow: "Zero in zero", zzTitle: "Upcoming “zero in zero” periods",
@@ -803,11 +823,8 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       svg.innerHTML = s;
     };
 
-    let raf = 0;
-    sc.addEventListener("scroll", () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => { raf = 0; me.draw(false); me.cfg && me.cfg.onScroll && me.cfg.onScroll(); });
-    }, { passive: true });
+    // scroll events already arrive once per frame
+    sc.addEventListener("scroll", () => { me.draw(false); me.cfg && me.cfg.onScroll && me.cfg.onScroll(); }, { passive: true });
 
     // mouse: drag to pan (touch already scrolls natively)
     let drag = null, moved = false;
@@ -860,30 +877,95 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
     return out;
   }
 
-  /* ---------- selection + readouts ---------- */
+  /* ---------- selection ---------- */
   function select(kind, ms, scroll) {
     S.sel[kind] = ms;
     TL[kind].draw(true);
-    renderReadout(kind);
+    W[kind].sync();
     if (scroll && !TL[kind].isVisible(ms)) TL[kind].scrollTo(ms, "center", true);
   }
 
   const badge = (cls, txt) => `<span class="badge${cls}">${esc(txt)}</span>`;
   const chip = v => `<span class="chip${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>`;
-  const bigBox = (v, cls) => `<span class="big${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>`;
+  const bigBox = v => `<span class="big${v === 0 ? " z" : ""}" style="background:${band(v)}">${v}</span>`;
   const isNowRun = r => NOW >= r.start && NOW < r.end;
 
-  function renderReadout(kind) {
-    const R = runs(kind), r = R[runIndexAt(R, S.sel[kind])];
+  /* ---------- period list under each chart ---------- */
+  // One row per period of the line. Rows snap into the lens (second slot), the previous
+  // period peeks above and the next ones fade out below. The row in the lens drives the cursor.
+  const ROW = 74, SLOTS = 4;
+  function rowHtml(kind, r, i) {
     const pk = peakOf(kind, r);
-    const bs = (isNowRun(r) ? badge("", t("nowBadge")) : "") + (inZZ(S.sel[kind]) ? badge(" z", t("zzBadge")) : "");
-    $(kind + "Read").innerHTML = `${bigBox(r.b)}
-      <div class="rd"><div class="when">${spanText(r.start, r.end)}</div>
-        <div class="mean">${esc(t("meanings")[r.b])}</div>
-        ${pk ? `<div class="peak">${esc(t("peak"))} · ${fmt(pk.t)}</div>` : ""}
-        ${bs ? `<div class="badges">${bs}</div>` : ""}</div>
-      <button class="btn ghost small" type="button" data-details="${kind}">${esc(t("details"))} →</button>`;
+    const zz = r.b === 0 && M.zz.some(z => z.end > r.start && z.start < r.end);
+    const bs = (isNowRun(r) ? badge("", t("nowBadge")) : "") + (zz ? badge(" z", t("zzBadge")) : "");
+    return `<div class="wh-row" role="option" data-i="${i}" style="top:${ROW + i * ROW}px;height:${ROW}px">${bigBox(r.b)}
+      <span class="wh-txt"><span class="when">${spanText(r.start, r.end)}${bs}</span>
+        <span class="m">${esc(t("meanings")[r.b])}</span>
+        <span class="pk">${pk ? `${esc(t("peak"))} · ${fmt(pk.t)}` : ""}</span></span>
+      <button class="wh-more" type="button" data-details="${kind}" tabindex="-1" aria-label="${esc(t("details"))}"><span class="lbl">${esc(t("details"))} </span>→</button></div>`;
   }
+  function Wheel(host, kind) {
+    host.style.height = SLOTS * ROW + "px";
+    host.innerHTML = `<div class="wh-lens" aria-hidden="true" style="top:${ROW}px;height:${ROW}px"></div><div class="wh-scroll" tabindex="0" role="listbox" style="scroll-padding-top:${ROW}px"><div class="wh-content"></div></div>`;
+    const sc = host.querySelector(".wh-scroll"), content = host.querySelector(".wh-content");
+    const me = { focus: -1, first: -1, last: -1 };
+
+    me.layout = () => {
+      content.style.height = (runs(kind).length * ROW + (SLOTS - 1) * ROW) + "px";
+      me.first = me.last = -1;
+      me.render(true);
+    };
+    // bring the selected period into the lens instantly (used when the chart is tapped)
+    me.sync = () => {
+      const i = runIndexAt(runs(kind), S.sel[kind]);
+      // draw the rows around the target first: snapping only lands on rows that exist
+      me.render(true, false, i);
+      if (Math.abs(sc.scrollTop - i * ROW) > 1) sc.scrollTop = i * ROW;
+      me.render(false);
+    };
+    me.render = (force, fromScroll, at) => {
+      if (!M) return;
+      const R = runs(kind), N = R.length, pos = at != null ? at : sc.scrollTop / ROW;
+      const f = Math.max(0, Math.min(N - 1, Math.round(pos)));
+      const first = Math.max(0, Math.floor(pos) - 2), last = Math.min(N - 1, Math.ceil(pos) + SLOTS + 1);
+      if (force || first !== me.first || last !== me.last) {
+        me.first = first; me.last = last;
+        let h = "";
+        for (let i = first; i <= last; i++) h += rowHtml(kind, R[i], i);
+        content.innerHTML = h;
+        me.focus = -1;
+      }
+      for (const el of content.children) {
+        const d = Math.abs(+el.dataset.i - pos);
+        el.style.opacity = Math.max(.12, 1 - .34 * Math.max(0, d - .1)).toFixed(3);
+      }
+      if (f !== me.focus) {
+        me.focus = f;
+        for (const el of content.children) {
+          const on = +el.dataset.i === f;
+          el.classList.toggle("on", on); el.setAttribute("aria-selected", String(on));
+        }
+        // the user scrolled onto a different period: move the chart cursor to its middle
+        if (fromScroll && runIndexAt(R, S.sel[kind]) !== f) {
+          S.sel[kind] = (R[f].start + R[f].end) / 2;
+          TL[kind].draw(true);
+          if (!TL[kind].isVisible(S.sel[kind])) TL[kind].scrollTo(S.sel[kind], "center", true);
+        }
+      }
+    };
+
+    sc.addEventListener("scroll", () => me.render(false, true), { passive: true });
+    content.addEventListener("click", ev => {
+      const row = ev.target.closest(".wh-row");
+      if (!row || ev.target.closest(".wh-more")) return;
+      const i = +row.dataset.i;
+      if (i !== me.focus) sc.scrollTo({ top: i * ROW, behavior: reduced() ? "auto" : "smooth" });
+      else openSheet(kind);
+    });
+    sc.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); openSheet(kind); } });
+    return me;
+  }
+  const W = { life: Wheel($("lifeRead"), "life"), year: Wheel($("yearRead"), "year") };
 
   /* ---------- renderers ---------- */
   const chips = D => `<span class="chips">${D.map(chip).join("")}</span>`;
@@ -931,8 +1013,8 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
 
   function setupTimelines(recenter) {
     $("lifeFormula").innerHTML = `<span>${M.d}</span><span class="op">×</span><span>${M.m}</span><span class="op">×</span><span>${M.y}</span><span class="op">=</span><span>${M.lifeProduct}</span><span class="op">→</span>${chips(M.lifeDigits)}`;
-    $("lifeHint").textContent = t("lifeHint").replace("{n}", t("years")(M.L));
-    $("yearHint").textContent = t("yearHint");
+    $("lifeHint").textContent = t("lifeHint").replace("{n}", t("years")(M.L)) + " " + t("listHint");
+    $("yearHint").textContent = t("yearHint") + " " + t("listHint");
     TL.life.cfg = {
       t0: M.t0, t1: M.t1, pts: M.lifePts, ticks: lifeTicks, span: () => S.lifeSpan * YEAR,
       onTap: ms => select("life", ms), onScroll: onLifeScroll
@@ -946,7 +1028,8 @@ dialog.sheet::backdrop { background: rgba(8, 12, 22, .5); }
       TL.life.scrollTo(S.sel.life, "center", false);
       TL.year.scrollTo(S.sel.year, "center", false);
     }
-    renderReadout("life"); renderReadout("year");
+    W.life.layout(); W.year.layout();
+    W.life.sync(); W.year.sync();
     lastLifeRange = ""; onLifeScroll();
     S.period = -1; onYearScroll();
   }
